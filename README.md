@@ -94,8 +94,8 @@ We're working through PRD §14 sequentially. Each phase has a "Definition of Don
 - [x] Phase 2 — Job & Customer CRUD
 - [x] Phase 3 — Photos
 - [x] Phase 4 — Moisture readings & drying logs
-- [x] **Phase 5** — Equipment (you are here)
-- [ ] Phase 6 — Sketching tool
+- [x] Phase 5 — Equipment
+- [x] **Phase 6** — Sketching tool (you are here)
 - [ ] Phase 7 — Forms & e-signatures
 - [ ] Phase 8 — Offline / PWA
 - [ ] Phase 9 — Reports
