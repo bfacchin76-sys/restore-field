@@ -257,6 +257,7 @@ model Photo {
 
   storageKey   String
   thumbnailKey String?
+  mediumKey    String?
   mimeType     String
   sizeBytes    Int
   width        Int?
@@ -272,6 +273,11 @@ model Photo {
   caption        String?
   tags           String[]        @default([])
   salvageability Salvageability?
+
+  // Processing state — see PRD §11
+  processedAt        DateTime?
+  processingError    String?
+  processingAttempts Int       @default(0)
 
   uploadedById String
   uploadedBy   User     @relation(fields: [uploadedById], references: [id])

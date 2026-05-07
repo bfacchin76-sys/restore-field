@@ -53,6 +53,7 @@ Open <http://localhost:3000>. Phase 0 only renders an "alive" page that confirms
 | `pnpm db:seed` | Run `prisma/seed.ts` |
 | `pnpm db:studio` | Open Prisma Studio |
 | `pnpm db:reset` | Drop + recreate dev DB |
+| `pnpm worker` | Run the BullMQ image-process worker (long-lived; needs Redis) |
 
 ### Without Docker
 
@@ -90,8 +91,8 @@ We're working through PRD §14 sequentially. Each phase has a "Definition of Don
 
 - [x] Phase 0 — Project bootstrap
 - [x] Phase 1 — Auth & user management
-- [x] **Phase 2** — Job & Customer CRUD (you are here)
-- [ ] Phase 3 — Photos
+- [x] Phase 2 — Job & Customer CRUD
+- [x] **Phase 3** — Photos (you are here)
 - [ ] Phase 4 — Moisture readings & drying logs
 - [ ] Phase 5 — Equipment
 - [ ] Phase 6 — Sketching tool

@@ -55,3 +55,6 @@ next-env.d.ts
 
 # prisma generated client lives in node_modules; nothing to ignore
 
+# local filesystem storage (LocalStorage adapter — dev-only)
+/.storage
+
