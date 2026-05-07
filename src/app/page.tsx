@@ -1,4 +1,14 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -22,77 +32,47 @@ async function checkDb(): Promise<DbStatus> {
 }
 
 export default async function Home() {
+  const session = await auth();
+  if (session?.user?.id && session.user.active) redirect("/app");
+
   const status = await checkDb();
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
-      <div className="w-full max-w-xl space-y-6 rounded-lg border border-border bg-card p-8 shadow-sm">
-        <header className="space-y-1">
-          <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-            RestoreField
-          </p>
-          <h1 className="text-3xl font-semibold text-card-foreground">
+    <main className="flex min-h-screen items-center justify-center bg-muted/30 px-6 py-16">
+      <Card className="w-full max-w-xl">
+        <CardHeader>
+          <CardDescription>RestoreField</CardDescription>
+          <CardTitle>
             {status.ok ? "RestoreField is alive" : "RestoreField is starting"}
-          </h1>
-        </header>
-
-        {status.ok ? (
-          <div className="space-y-4">
-            <div
-              role="status"
-              className="flex items-center gap-2 text-sm font-medium text-emerald-600"
-            >
-              <span
-                aria-hidden
-                className="inline-block h-2 w-2 rounded-full bg-emerald-500"
-              />
-              Database connection OK
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {status.ok ? (
+            <div className="flex items-center gap-2 text-sm font-medium text-emerald-600">
+              <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+              Database connection OK · {status.orgCount} org · {status.userCount} user(s)
             </div>
-            <dl className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Organizations</dt>
-                <dd className="text-2xl font-semibold tabular-nums">
-                  {status.orgCount}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Users</dt>
-                <dd className="text-2xl font-semibold tabular-nums">
-                  {status.userCount}
-                </dd>
-              </div>
-            </dl>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div
-              role="alert"
-              className="flex items-center gap-2 text-sm font-medium text-destructive"
-            >
-              <span
-                aria-hidden
-                className="inline-block h-2 w-2 rounded-full bg-destructive"
-              />
-              Database connection failed
-            </div>
+          ) : (
             <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">
               {status.error}
             </pre>
-            <p className="text-sm text-muted-foreground">
-              Check that <code className="rounded bg-muted px-1">DATABASE_URL</code>{" "}
-              points at a running Postgres and that{" "}
-              <code className="rounded bg-muted px-1">pnpm db:migrate</code> has
-              run.
-            </p>
+          )}
+          <div className="flex gap-2">
+            <Link
+              href="/login"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/forgot-password"
+              className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent"
+            >
+              Forgot password?
+            </Link>
           </div>
-        )}
-
-        <footer className="border-t border-border pt-4 text-xs text-muted-foreground">
-          Phase 0 — bootstrap. See{" "}
-          <code className="rounded bg-muted px-1">RESTOREFIELD_PRD.md</code>{" "}
-          §14 for the build plan.
-        </footer>
-      </div>
+        </CardContent>
+      </Card>
     </main>
   );
 }

@@ -612,3 +612,40 @@ model AuditLog {
   @@index([jobId, createdAt])
   @@index([userId, createdAt])
 }
+
+// =======================================================
+// AUTH TOKENS — auxiliary table for password reset, invites,
+// and subcontractor magic links. Not a domain entity; lives
+// here because Auth.js v5 with Credentials provider does not
+// ship its own session/token store.
+// =======================================================
+
+model VerificationToken {
+  id             String              @id @default(cuid())
+  // hashed token (sha256 hex) — never store raw tokens server-side
+  tokenHash      String              @unique
+  purpose        VerificationPurpose
+  // Target identifier — email for INVITE/PASSWORD_RESET/MAGIC_LINK,
+  // user id for already-existing-user flows.
+  email          String
+  // Optional link to an existing user (set for PASSWORD_RESET, MAGIC_LINK
+  // when known; null for new invites until accepted).
+  userId         String?
+  // Optional org binding for INVITE (the org the new user joins).
+  organizationId String?
+  // Optional payload (e.g. invite role, intended job-id for subcontractor).
+  payload        Json?
+
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email, purpose])
+  @@index([expiresAt])
+}
+
+enum VerificationPurpose {
+  PASSWORD_RESET
+  INVITE
+  MAGIC_LINK
+}
