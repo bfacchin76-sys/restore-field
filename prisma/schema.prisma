@@ -1,0 +1,614 @@
+// Prisma schema for RestoreField — see RESTOREFIELD_PRD.md Section 6.
+// This file is the source of truth for the data model.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+// =======================================================
+// TENANCY & USERS
+// =======================================================
+
+model Organization {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+
+  // Branding for reports
+  logoUrl      String?
+  primaryColor String  @default("#1e3a8a")
+  reportFooter String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  jobs          Job[]
+  customers     Customer[]
+  equipment     Equipment[]
+  formTemplates FormTemplate[]
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String?
+  name         String
+  phone        String?
+  role         Role      @default(TECH)
+  active       Boolean   @default(true)
+  totpSecret   String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  // Activity
+  jobsCreated      Job[]             @relation("JobCreator")
+  jobsAssigned     JobAssignment[]
+  photosUploaded   Photo[]
+  notesCreated     Note[]
+  readingsTaken    MoistureReading[]
+  signaturesGiven  Signature[]
+  reportsGenerated Report[]
+  auditLogs        AuditLog[]
+
+  @@index([organizationId])
+}
+
+enum Role {
+  OWNER
+  OFFICE_ADMIN
+  LEAD_TECH
+  TECH
+  SUBCONTRACTOR
+  READ_ONLY
+}
+
+// =======================================================
+// JOBS (the central entity)
+// =======================================================
+
+model Customer {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+
+  // Property address (the loss location)
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String  @default("NY")
+  postalCode   String
+
+  // Insurance info
+  insuranceCarrier String?
+  policyNumber     String?
+  claimNumber      String?
+  adjusterName     String?
+  adjusterEmail    String?
+  adjusterPhone    String?
+
+  jobs      Job[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([lastName, firstName])
+}
+
+model Job {
+  id             String       @id @default(cuid())
+  jobNumber      String // e.g., "1800WD-2026-0142" — auto-generated, unique per org
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  lossType        LossType
+  status          JobStatus @default(DRAFT)
+  lossDate        DateTime?
+  firstResponseAt DateTime?
+  closedAt        DateTime?
+
+  // Brief description of the cause
+  causeOfLoss String?
+  // Free-form scope notes
+  scopeNotes  String? @db.Text
+
+  createdById String
+  createdBy   User     @relation("JobCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  rooms               Room[]
+  photos              Photo[]
+  notes               Note[]
+  readings            MoistureReading[]
+  dryingLogs          DryingLog[]
+  equipmentPlacements EquipmentPlacement[]
+  sketches            Sketch[]
+  formSubmissions     FormSubmission[]
+  reports             Report[]
+  assignments         JobAssignment[]
+  shares              JobShare[]
+  auditLogs           AuditLog[]
+
+  @@unique([organizationId, jobNumber])
+  @@index([organizationId, status])
+  @@index([customerId])
+}
+
+enum LossType {
+  WATER
+  FIRE
+  MOLD
+  SMOKE
+  SEWAGE
+  STORM
+  OTHER
+}
+
+enum JobStatus {
+  DRAFT
+  ACTIVE
+  DRYING
+  COMPLETE
+  ON_HOLD
+  CLOSED
+  CANCELLED
+}
+
+model JobAssignment {
+  id         String   @id @default(cuid())
+  jobId      String
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  role       String
+  assignedAt DateTime @default(now())
+
+  @@unique([jobId, userId])
+}
+
+// Time-limited share for adjusters / customers
+model JobShare {
+  id             String    @id @default(cuid())
+  jobId          String
+  job            Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  recipientEmail String
+  token          String    @unique
+  expiresAt      DateTime
+  permissions    Json
+  createdAt      DateTime  @default(now())
+  lastUsedAt     DateTime?
+  revoked        Boolean   @default(false)
+}
+
+// =======================================================
+// ROOMS & PHOTOS
+// =======================================================
+
+model Room {
+  id    String  @id @default(cuid())
+  jobId String
+  job   Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name  String
+  floor String?
+
+  // Optional measurements (manual entry)
+  lengthFt Float?
+  widthFt  Float?
+  heightFt Float? @default(8.0)
+
+  // Affected materials
+  affectedMaterials Json?
+  category          WaterCategory?
+  classOfLoss       WaterClass?
+  notes             String?        @db.Text
+  sortOrder         Int            @default(0)
+
+  photos              Photo[]
+  readings            MoistureReading[]
+  equipmentPlacements EquipmentPlacement[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@index([jobId])
+}
+
+enum WaterCategory {
+  CAT_1
+  CAT_2
+  CAT_3
+}
+
+enum WaterClass {
+  CLASS_1
+  CLASS_2
+  CLASS_3
+  CLASS_4
+}
+
+model Photo {
+  id     String  @id @default(cuid())
+  jobId  String
+  job    Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  roomId String?
+  room   Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  storageKey   String
+  thumbnailKey String?
+  mimeType     String
+  sizeBytes    Int
+  width        Int?
+  height       Int?
+
+  // EXIF / metadata
+  takenAt     DateTime?
+  gpsLat      Float?
+  gpsLng      Float?
+  deviceModel String?
+
+  // User input
+  caption        String?
+  tags           String[]        @default([])
+  salvageability Salvageability?
+
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([jobId])
+  @@index([roomId])
+  @@index([takenAt])
+}
+
+enum Salvageability {
+  SALVAGEABLE
+  UNSALVAGEABLE
+  REQUIRES_PROFESSIONAL_CLEANING
+  PENDING_REVIEW
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
+}
+
+// =======================================================
+// MOISTURE & DRYING
+// =======================================================
+
+model MoistureReading {
+  id     String  @id @default(cuid())
+  jobId  String
+  job    Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  roomId String?
+  room   Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  // What was measured
+  surface   String
+  material  Material
+  meterType MeterType
+
+  // Reading values
+  moistureValue Float
+  scaleType     ScaleType @default(PERCENT_MC)
+
+  // Environmental conditions at time of reading
+  ambientTempF Float?
+  ambientRH    Float?
+
+  // Drying status
+  isDryGoal Boolean @default(false)
+  isInitial Boolean @default(false)
+  isDry     Boolean @default(false)
+
+  // Notes & photo
+  notes   String?
+  photoId String?
+
+  takenById String
+  takenBy   User     @relation(fields: [takenById], references: [id])
+  takenAt   DateTime @default(now())
+
+  @@index([jobId, takenAt])
+  @@index([roomId])
+}
+
+enum Material {
+  DRYWALL
+  PLASTER
+  WOOD_FRAMING
+  HARDWOOD
+  ENGINEERED_WOOD
+  LAMINATE
+  CONCRETE
+  CARPET
+  CARPET_PAD
+  SUBFLOOR_OSB
+  SUBFLOOR_PLYWOOD
+  TILE
+  INSULATION
+  CABINETRY
+  OTHER
+}
+
+enum MeterType {
+  PIN
+  PINLESS
+  THERMO_HYGROMETER
+  IR_CAMERA
+}
+
+enum ScaleType {
+  PERCENT_MC
+  PERCENT_WME
+  RELATIVE_SCALE
+  GPP
+}
+
+model DryingLog {
+  id      String   @id @default(cuid())
+  jobId   String
+  job     Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  logDate DateTime
+
+  // Psychrometric readings — outside, unaffected, affected, HVAC
+  outsideTempF    Float?
+  outsideRH       Float?
+  outsideGPP      Float?
+  unaffectedTempF Float?
+  unaffectedRH    Float?
+  unaffectedGPP   Float?
+  affectedTempF   Float?
+  affectedRH      Float?
+  affectedGPP     Float?
+  hvacTempF       Float?
+  hvacRH          Float?
+  hvacGPP         Float?
+
+  techNotes    String?  @db.Text
+  recordedById String
+  createdAt    DateTime @default(now())
+
+  @@index([jobId, logDate])
+}
+
+// =======================================================
+// EQUIPMENT
+// =======================================================
+
+model Equipment {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  assetTag     String        @unique
+  type         EquipmentType
+  manufacturer String?
+  model        String?
+  serialNumber String?
+
+  // Technical specs
+  amperage    Float?
+  cfm         Int?
+  ppd         Int?
+  status      EquipmentStatus @default(AVAILABLE)
+  notes       String?
+  purchasedAt DateTime?
+
+  placements EquipmentPlacement[]
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@index([organizationId, type, status])
+}
+
+enum EquipmentType {
+  AIR_MOVER
+  DEHUMIDIFIER_LGR
+  DEHUMIDIFIER_REFRIGERANT
+  DEHUMIDIFIER_DESICCANT
+  AIR_SCRUBBER_HEPA
+  HEATER
+  OZONE
+  HYDROXYL
+  THERMAL_FOGGER
+  DRYING_MAT
+  OTHER
+}
+
+enum EquipmentStatus {
+  AVAILABLE
+  DEPLOYED
+  MAINTENANCE
+  RETIRED
+}
+
+model EquipmentPlacement {
+  id          String    @id @default(cuid())
+  jobId       String
+  job         Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  roomId      String?
+  room        Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id])
+  placedAt    DateTime  @default(now())
+  removedAt   DateTime?
+  notes       String?
+
+  @@index([jobId])
+  @@index([equipmentId, removedAt])
+}
+
+// =======================================================
+// SKETCHES
+// =======================================================
+
+model Sketch {
+  id        String @id @default(cuid())
+  jobId     String
+  job       Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name      String
+  // Vector data for editing — JSON Konva scene
+  sceneData Json
+
+  // Last rendered raster export (for fast PDF embedding)
+  pngStorageKey String?
+  pdfStorageKey String?
+
+  // Calculated areas
+  totalSqFt     Float?
+  totalLinearFt Float?
+
+  // Versioning
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([jobId])
+}
+
+// =======================================================
+// FORMS & SIGNATURES
+// =======================================================
+
+model FormTemplate {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  name         String
+  schema       Json
+  bodyTemplate String           @db.Text
+  active       Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  submissions  FormSubmission[]
+
+  @@index([organizationId])
+}
+
+model FormSubmission {
+  id         String       @id @default(cuid())
+  jobId      String
+  job        Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  templateId String
+  template   FormTemplate @relation(fields: [templateId], references: [id])
+
+  values         Json
+  renderedPdfKey String?
+  signatures     Signature[]
+  status         FormStatus  @default(DRAFT)
+  sentToEmail    String?
+  sentAt         DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([jobId])
+}
+
+enum FormStatus {
+  DRAFT
+  SENT
+  PARTIALLY_SIGNED
+  COMPLETED
+  EXPIRED
+}
+
+model Signature {
+  id               String         @id @default(cuid())
+  formSubmissionId String
+  formSubmission   FormSubmission @relation(fields: [formSubmissionId], references: [id], onDelete: Cascade)
+  signerName       String
+  signerEmail      String?
+  signerRole       String
+
+  signatureDataUrl String   @db.Text
+  signedAt         DateTime @default(now())
+  ipAddress        String?
+  userAgent        String?
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([formSubmissionId])
+}
+
+// =======================================================
+// REPORTS
+// =======================================================
+
+model Report {
+  id    String     @id @default(cuid())
+  jobId String
+  job   Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  type  ReportType
+
+  pdfStorageKey String
+  dataSnapshot  Json
+  config        Json
+
+  generatedById String
+  generatedBy   User     @relation(fields: [generatedById], references: [id])
+  generatedAt   DateTime @default(now())
+
+  @@index([jobId, type])
+}
+
+enum ReportType {
+  WATER_MITIGATION
+  FIRE_LOSS
+  MOLD_REMEDIATION
+  CONTENTS_INVENTORY
+  PHOTO_REPORT
+  MOISTURE_LOG
+  EQUIPMENT_LOG
+  ESTIMATE_PROPOSAL
+  CUSTOM
+}
+
+// =======================================================
+// AUDIT LOG (legal defensibility)
+// =======================================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  jobId     String?
+  job       Job?     @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  details   Json
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([jobId, createdAt])
+  @@index([userId, createdAt])
+}
