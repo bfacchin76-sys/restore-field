@@ -43,6 +43,11 @@ export default async function AppLayout({
               Account
             </Link>
             {isAdmin ? (
+              <Link href="/app/equipment" className="hover:underline">
+                Equipment
+              </Link>
+            ) : null}
+            {isAdmin ? (
               <Link href="/app/admin/users" className="hover:underline">
                 Admin
               </Link>

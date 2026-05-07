@@ -7,9 +7,16 @@
  */
 import "server-only";
 import { Worker } from "bullmq";
-import { QUEUE_IMAGE_PROCESS, type ImageProcessJob } from "./queues";
+import {
+  QUEUE_DAILY_COUNTS,
+  QUEUE_IMAGE_PROCESS,
+  scheduleDailyCountsCron,
+  type DailyCountsJob,
+  type ImageProcessJob,
+} from "./queues";
 import { getRedis } from "./connection";
 import { processImageJob } from "./processors/image-process";
+import { processDailyCountsJob } from "./processors/daily-counts";
 import { logger } from "@/lib/logger";
 
 export function startImageProcessWorker(): Worker<ImageProcessJob> {
@@ -30,6 +37,35 @@ export function startImageProcessWorker(): Worker<ImageProcessJob> {
     logger.error(
       { photoId: job?.data.photoId, err: err.message, attempts: job?.attemptsMade },
       "image-process failed",
+    ),
+  );
+
+  return worker;
+}
+
+export function startDailyCountsWorker(): Worker<DailyCountsJob> {
+  const worker = new Worker<DailyCountsJob>(
+    QUEUE_DAILY_COUNTS,
+    async (job) => processDailyCountsJob(job.data),
+    {
+      connection: getRedis(),
+      concurrency: 1,
+    },
+  );
+
+  worker.on("ready", async () => {
+    logger.info("equipment-daily-counts worker ready");
+    try {
+      await scheduleDailyCountsCron();
+      logger.info("equipment-daily-counts cron scheduled (00:05 UTC)");
+    } catch (err) {
+      logger.error({ err }, "failed to schedule daily-counts cron");
+    }
+  });
+  worker.on("failed", (job, err) =>
+    logger.error(
+      { err: err.message, attempts: job?.attemptsMade },
+      "equipment-daily-counts failed",
     ),
   );
 

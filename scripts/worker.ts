@@ -1,18 +1,25 @@
 /**
  * Worker process — `pnpm worker` runs this. Long-lived; processes the
- * BullMQ image-process queue. Same image, different command (PRD §5/§13).
+ * BullMQ image-process and equipment-daily-counts queues. Same image,
+ * different command (PRD §5/§13).
  */
-import { startImageProcessWorker } from "../src/lib/queue/worker";
+import {
+  startDailyCountsWorker,
+  startImageProcessWorker,
+} from "../src/lib/queue/worker";
 
-const worker = startImageProcessWorker();
+const imageWorker = startImageProcessWorker();
+const dailyCountsWorker = startDailyCountsWorker();
 
 async function shutdown(reason: string): Promise<never> {
   console.log(`[worker] shutting down (${reason})`);
-  await worker.close();
+  await Promise.all([imageWorker.close(), dailyCountsWorker.close()]);
   process.exit(0);
 }
 
 process.on("SIGINT", () => void shutdown("SIGINT"));
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
-console.log("[worker] image-process worker started; waiting for jobs…");
+console.log(
+  "[worker] image-process + equipment-daily-counts workers started; waiting for jobs…",
+);
