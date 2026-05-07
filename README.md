@@ -89,8 +89,8 @@ Adjust `.env.local` if your local setup differs.
 We're working through PRD §14 sequentially. Each phase has a "Definition of Done" — finish it before moving to the next.
 
 - [x] Phase 0 — Project bootstrap
-- [x] **Phase 1** — Auth & user management (you are here)
-- [ ] Phase 2 — Job & Customer CRUD
+- [x] Phase 1 — Auth & user management
+- [x] **Phase 2** — Job & Customer CRUD (you are here)
 - [ ] Phase 3 — Photos
 - [ ] Phase 4 — Moisture readings & drying logs
 - [ ] Phase 5 — Equipment

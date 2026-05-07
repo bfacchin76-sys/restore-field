@@ -21,18 +21,21 @@ model Organization {
   slug String @unique
 
   // Branding for reports
-  logoUrl      String?
-  primaryColor String  @default("#1e3a8a")
-  reportFooter String?
+  logoUrl         String?
+  primaryColor    String  @default("#1e3a8a")
+  reportFooter    String?
+  // Used by the job-number generator: {prefix}-{year}-{0001..9999}
+  jobNumberPrefix String  @default("JOB")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users         User[]
-  jobs          Job[]
-  customers     Customer[]
-  equipment     Equipment[]
-  formTemplates FormTemplate[]
+  users             User[]
+  jobs              Job[]
+  customers         Customer[]
+  equipment         Equipment[]
+  formTemplates     FormTemplate[]
+  jobNumberCounters JobNumberCounter[]
 }
 
 model User {
@@ -648,4 +651,21 @@ enum VerificationPurpose {
   PASSWORD_RESET
   INVITE
   MAGIC_LINK
+}
+
+// =======================================================
+// JOB NUMBERING — atomic per-org-per-year sequence used by the
+// job-number generator (PRD §8.1). Implementation detail; not a
+// domain model. We use a transactional UPDATE … RETURNING to
+// allocate the next number under contention.
+// =======================================================
+
+model JobNumberCounter {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  year           Int
+  nextSeq        Int          @default(1)
+
+  @@unique([organizationId, year])
 }

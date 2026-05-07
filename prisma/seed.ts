@@ -40,6 +40,7 @@ async function main() {
     "ORG_REPORT_FOOTER",
     "1-800 Water Damage of Nassau County",
   );
+  const orgJobNumberPrefix = envOrDefault("ORG_JOB_NUMBER_PREFIX", "JOB");
 
   const ownerEmail = envOrThrow("INITIAL_OWNER_EMAIL");
   const ownerPassword = envOrThrow("INITIAL_OWNER_PASSWORD");
@@ -53,8 +54,9 @@ async function main() {
       slug: orgSlug,
       primaryColor: orgPrimaryColor,
       reportFooter: orgReportFooter,
+      jobNumberPrefix: orgJobNumberPrefix,
     },
-    update: {},
+    update: { jobNumberPrefix: orgJobNumberPrefix },
   });
   console.log(`[seed] Organization "${org.name}" (${org.slug})`);
 
