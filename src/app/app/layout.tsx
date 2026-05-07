@@ -48,6 +48,11 @@ export default async function AppLayout({
               </Link>
             ) : null}
             {isAdmin ? (
+              <Link href="/app/admin/forms" className="hover:underline">
+                Forms
+              </Link>
+            ) : null}
+            {isAdmin ? (
               <Link href="/app/admin/users" className="hover:underline">
                 Admin
               </Link>

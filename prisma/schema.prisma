@@ -657,6 +657,7 @@ enum VerificationPurpose {
   PASSWORD_RESET
   INVITE
   MAGIC_LINK
+  FORM_SIGN
 }
 
 // =======================================================
