@@ -25,6 +25,7 @@ function fixtureSnapshot(reportType: ReportType): ReportSnapshot {
       reportFooter: "1-800-WATER-DAMAGE",
       licenseNumber: "NY-LIC-12345",
       logoUrl: null,
+      logoDataUrl: null,
     },
     job: {
       id: "j1",

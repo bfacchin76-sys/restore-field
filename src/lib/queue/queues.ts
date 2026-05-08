@@ -84,12 +84,17 @@ export async function scheduleDailyCountsCron(): Promise<void> {
   // Run every day at 00:05 UTC. We don't have per-org timezones in v1;
   // PRD §8.5 calls for org-local time but with one tenant in NY the day
   // boundary is close enough at 00:05 UTC = 8:05 PM EST.
+  //
+  // IMPORTANT: do NOT bake `data.day` into the template. BullMQ's
+  // upsertJobScheduler stores the template once; later runs would
+  // replay the original date. The processor derives `day` from the
+  // BullMQ job timestamp when `data.day` is empty.
   await q.upsertJobScheduler(
     "equipment-daily-counts-daily",
     { pattern: "5 0 * * *" },
     {
       name: "snapshot",
-      data: { day: new Date().toISOString().slice(0, 10) },
+      data: { day: "" },
     },
   );
 }

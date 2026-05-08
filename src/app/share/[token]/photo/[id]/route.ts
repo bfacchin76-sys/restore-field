@@ -10,11 +10,11 @@ interface SharePermissions {
 }
 
 /**
- * Photo bytes for a job-scope share. Streams the medium WebP if
- * available, else the original. The share must:
- *   - have `kind: "job"` (or omit kind but include scopes.photos),
- *   - not be revoked or expired,
- *   - and the photo must belong to the same job as the share.
+ * Photo bytes for a job-scope share. Always streams the EXIF-stripped
+ * medium WebP — never the original (PRD §8.2: "Stripped on derivatives
+ * by default" for shared copies). If the medium derivative isn't ready
+ * yet (image-process queue still working), 425 Too Early so the
+ * recipient retries instead of getting EXIF/GPS leak.
  */
 export async function GET(
   _req: NextRequest,
@@ -36,15 +36,19 @@ export async function GET(
   if (!photo || photo.jobId !== share.jobId) {
     return new NextResponse("Not found.", { status: 404 });
   }
+  if (!photo.mediumKey) {
+    return new NextResponse(
+      "Photo still processing. Try again in a moment.",
+      { status: 425 },
+    );
+  }
 
   const storage = getStorage();
-  const key = photo.mediumKey ?? photo.storageKey;
-  const bytes = await storage.getObjectBytes(key);
-  const mime = photo.mediumKey ? "image/webp" : photo.mimeType;
+  const bytes = await storage.getObjectBytes(photo.mediumKey);
 
   return new NextResponse(new Uint8Array(bytes), {
     headers: {
-      "Content-Type": mime,
+      "Content-Type": "image/webp",
       "Cache-Control": "private, max-age=300",
     },
   });

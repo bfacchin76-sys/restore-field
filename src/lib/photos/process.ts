@@ -43,6 +43,79 @@ const ALLOWED_IMAGE_FORMATS = new Set<string>([
 ]);
 
 /**
+ * Magic-byte sniff against the first ~16 bytes of the upload. Returns
+ * one of the ALLOWED_IMAGE_FORMATS strings or null. Audit H3: we run
+ * this BEFORE handing the buffer to Sharp's `metadata()` so a future
+ * libvips parser CVE in TIFF/SVG/PDF can't be triggered by hostile
+ * input that we'd reject anyway.
+ */
+function sniffMagicBytes(buf: Buffer): string | null {
+  if (buf.length < 12) return null;
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "jpeg";
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47 &&
+    buf[4] === 0x0d &&
+    buf[5] === 0x0a &&
+    buf[6] === 0x1a &&
+    buf[7] === 0x0a
+  ) {
+    return "png";
+  }
+  // GIF: "GIF87a" or "GIF89a"
+  if (
+    buf[0] === 0x47 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x38 &&
+    (buf[4] === 0x37 || buf[4] === 0x39) &&
+    buf[5] === 0x61
+  ) {
+    return "gif";
+  }
+  // WebP: "RIFF" .... "WEBP"
+  if (
+    buf[0] === 0x52 &&
+    buf[1] === 0x49 &&
+    buf[2] === 0x46 &&
+    buf[3] === 0x46 &&
+    buf[8] === 0x57 &&
+    buf[9] === 0x45 &&
+    buf[10] === 0x42 &&
+    buf[11] === 0x50
+  ) {
+    return "webp";
+  }
+  // HEIF/HEIC: ISO BMFF box "ftyp" + brand starting at byte 8.
+  // Brands we accept: heic, heix, heim, heis, hevc, hevx, mif1, msf1.
+  if (
+    buf[4] === 0x66 && // 'f'
+    buf[5] === 0x74 && // 't'
+    buf[6] === 0x79 && // 'y'
+    buf[7] === 0x70 // 'p'
+  ) {
+    const brand = buf.subarray(8, 12).toString("ascii");
+    if (
+      brand === "heic" ||
+      brand === "heix" ||
+      brand === "heim" ||
+      brand === "heis" ||
+      brand === "hevc" ||
+      brand === "hevx" ||
+      brand === "mif1" ||
+      brand === "msf1"
+    ) {
+      return "heif";
+    }
+  }
+  return null;
+}
+
+/**
  * Run the full Sharp pipeline against an uploaded image.
  *
  *   1. Detect format. If HEIC/HEIF, transcode to JPEG (the canonical "original").
@@ -57,15 +130,23 @@ export async function processImage(
   inputBytes: Buffer,
   uploadedMime: string,
 ): Promise<ProcessedImage> {
-  // 1. Sniff format. PRD §11: explicit allow-list rejection to keep
-  //    SVG / PDF / weird formats Sharp also understands out of the
-  //    photo pipeline. The presign endpoint screens by MIME (which can
-  //    be spoofed); this is the magic-byte gate.
+  // 1. Sniff format. PRD §11 / audit H3: magic-byte gate runs BEFORE
+  //    Sharp's `metadata()` so a libvips parser CVE in TIFF/SVG/PDF
+  //    can't fire on hostile bytes we'd reject anyway. Sharp's
+  //    detection is then used as a second-opinion check (it would
+  //    catch a buffer whose first bytes look like a JPEG but is
+  //    actually something else past byte 16).
+  const sniffed = sniffMagicBytes(inputBytes);
+  if (!sniffed || !ALLOWED_IMAGE_FORMATS.has(sniffed)) {
+    throw new Error(
+      `Rejecting upload: detected format "${sniffed ?? "unknown"}" is not an allowed photo type.`,
+    );
+  }
   const baseMeta = await sharp(inputBytes).metadata();
   const format = baseMeta.format ?? "";
-  if (!ALLOWED_IMAGE_FORMATS.has(format)) {
+  if (!ALLOWED_IMAGE_FORMATS.has(format) || format !== sniffed) {
     throw new Error(
-      `Rejecting upload: detected format "${format || "unknown"}" is not an allowed photo type.`,
+      `Rejecting upload: Sharp says "${format || "unknown"}", magic bytes say "${sniffed}".`,
     );
   }
 

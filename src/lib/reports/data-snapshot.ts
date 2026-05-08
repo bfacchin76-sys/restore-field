@@ -67,6 +67,44 @@ async function photoDataUrl(
   }
 }
 
+/**
+ * Fetch the org logo bytes once and inline as a data: URI so the
+ * locked-down Puppeteer page can render it without an outbound fetch
+ * (PRD §11 / audit H4).
+ *
+ * `logoUrl` may be:
+ *   - already a `data:` URI — pass through
+ *   - a storage key (`branding/<orgId>/logo.png`) — fetch via storage
+ *   - an http(s) URL — best-effort fetch; we trust the org admin's
+ *     own setting here, but a render failure isn't fatal
+ */
+async function logoDataUrl(logoUrl: string | null): Promise<string | null> {
+  if (!logoUrl) return null;
+  if (logoUrl.startsWith("data:")) return logoUrl;
+  const storage = getStorage();
+  // Heuristic: if it looks like a storage key (no scheme), fetch via storage.
+  const isUrl = /^https?:\/\//i.test(logoUrl);
+  try {
+    if (isUrl) {
+      const res = await fetch(logoUrl);
+      if (!res.ok) return null;
+      const buf = Buffer.from(await res.arrayBuffer());
+      const mime = res.headers.get("content-type") ?? "image/png";
+      return `data:${mime};base64,${buf.toString("base64")}`;
+    }
+    const bytes = await storage.getObjectBytes(logoUrl);
+    // PNG/JPEG/SVG are the realistic logo formats; default to png.
+    const guessedMime = /\.svg(\?|$)/i.test(logoUrl)
+      ? "image/svg+xml"
+      : /\.jpe?g(\?|$)/i.test(logoUrl)
+        ? "image/jpeg"
+        : "image/png";
+    return `data:${guessedMime};base64,${bytes.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function collectReportSnapshot(
   input: CollectSnapshotInput,
 ): Promise<ReportSnapshot> {
@@ -279,6 +317,8 @@ export async function collectReportSnapshot(
     };
   }
 
+  const orgLogoDataUrl = await logoDataUrl(job.organization.logoUrl);
+
   return {
     generatedAt: new Date().toISOString(),
     reportType,
@@ -289,6 +329,7 @@ export async function collectReportSnapshot(
       reportFooter: job.organization.reportFooter,
       licenseNumber: job.organization.licenseNumber,
       logoUrl: job.organization.logoUrl,
+      logoDataUrl: orgLogoDataUrl,
     },
     job: {
       id: job.id,

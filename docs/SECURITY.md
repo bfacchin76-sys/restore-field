@@ -158,9 +158,43 @@ PRD §11 task 5. Script: `loadtest/k6-photo-upload.js`. Targets:
 
 Last run: TODO date + numbers — fill in after first run.
 
+## Post-Phase-11 audit fixes (2026-05-08)
+
+A code audit after Phase 11 surfaced 8 issues; all fixed in one patch:
+
+- **C1 (daily-counts cron):** the BullMQ scheduler template was baking the
+  boot-day's date into every nightly run. Now the template ships an
+  empty string and the processor derives "yesterday UTC" at run time.
+- **C2 (EXIF leak on share fallback):** `/share/[token]/photo/[id]`
+  returned the EXIF-bearing original when the medium derivative wasn't
+  ready yet. Now returns 425 Too Early; PRD §8.2 satisfied.
+- **H1 (search wildcard DoS):** ILIKE pattern `%${q}%` accepted user
+  `%`/`_` literally, returning every row. Now escaped with `\`.
+- **H2 (CSP wildcards):** `connect-src https:` and `img-src https:`
+  replaced with the explicit `S3_ENDPOINT` origin (resolved at build
+  time from the env). Cross-origin exfil via XSS now needs a same-origin
+  endpoint.
+- **H3 (Sharp ordering):** added a magic-byte sniff before
+  `sharp.metadata()` so a hostile TIFF/SVG/PDF can't trigger a libvips
+  parser CVE before our format gate rejects it.
+- **H4 (logo missing):** report PDFs now render the org logo in the
+  dark-blue header band. Snapshot collector inlines the logo as a
+  data: URI so the locked-down Puppeteer page can render it without
+  an outbound fetch.
+- **H5 (local-storage signed URL binding):** HMAC payload now includes
+  `userId` + `organizationId`; the upload/download routes verify the
+  current session matches. Leaked URLs can't be replayed by another
+  user. Production unaffected (uses S3 directly).
+- **H6 (XFF trust):** rate-limiter reads only the rightmost
+  `TRUSTED_PROXY_HOPS` (default 1) entries of XFF, so a misconfigured
+  upstream that prepends user-supplied XFF doesn't bypass the IP limiter.
+
 ## Outstanding follow-ups
 
 - CSP nonces for `script-src` (Phase 11.5 / Phase 12).
 - WAF / IP-block-list at Caddy for repeat-offender IPs.
 - Add `X-Frame-Options: DENY` to Caddy as belt-and-braces (currently
   set by Next; some upstream errors bypass).
+- The Medium-tier defense-in-depth findings (M1–M5 in the audit
+  report) are deferred — none are exploitable today and they touch
+  schema or core auth flow, so they want their own focused phase.

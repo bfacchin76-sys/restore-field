@@ -134,6 +134,10 @@ export interface ReportSnapshot {
     reportFooter: string | null;
     licenseNumber: string | null;
     logoUrl: string | null;
+    /** Embedded data: URI of the org logo so the locked-down Puppeteer
+     *  page can render it without an outbound fetch. Filled in by the
+     *  snapshot collector when `logoUrl` resolves to a storage key. */
+    logoDataUrl: string | null;
   };
   job: {
     id: string;

@@ -114,6 +114,7 @@ export async function presignPhotoUploads(
       contentType: f.mimeType,
       maxSizeBytes: f.size,
       ttlSeconds: 60 * 30,
+      actor: { userId: actor.id, organizationId: actor.organizationId },
     });
     uploads.push({
       photoId: photo.id,

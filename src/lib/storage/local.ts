@@ -28,6 +28,13 @@ interface LocalSig {
   t: number; // unix-ms expiry
   c?: string; // contentType (PUT only)
   n: string; // nonce
+  /** User id at issue time. Audit H5: PUT/GET routes verify the
+   *  current session matches this id, so a leaked URL can't be
+   *  replayed by a different user (tokens are still HMAC-signed,
+   *  so values can't be forged). */
+  u: string;
+  /** Organization id at issue time — same purpose as `u`. */
+  o: string;
 }
 
 function sign(payload: LocalSig): string {
@@ -66,6 +73,11 @@ function safeKeyToPath(key: string): string {
 
 export class LocalStorage implements Storage {
   async presignedPut(input: PresignedPutInput): Promise<PresignedPut> {
+    if (!input.actor) {
+      throw new Error(
+        "LocalStorage.presignedPut requires `actor` (userId + organizationId).",
+      );
+    }
     const ttl = input.ttlSeconds ?? DEFAULT_PUT_TTL;
     const expiresAt = new Date(Date.now() + ttl * 1000);
     const token = sign({
@@ -74,6 +86,8 @@ export class LocalStorage implements Storage {
       t: expiresAt.getTime(),
       c: input.contentType,
       n: randomBytes(8).toString("hex"),
+      u: input.actor.userId,
+      o: input.actor.organizationId,
     });
     const url = `${env.NEXTAUTH_URL.replace(/\/$/, "")}/api/storage/upload?token=${encodeURIComponent(token)}`;
     return {
@@ -85,6 +99,11 @@ export class LocalStorage implements Storage {
   }
 
   async presignedGet(input: PresignedGetInput): Promise<PresignedGet> {
+    if (!input.actor) {
+      throw new Error(
+        "LocalStorage.presignedGet requires `actor` (userId + organizationId).",
+      );
+    }
     const ttl = input.ttlSeconds ?? DEFAULT_GET_TTL;
     const expiresAt = new Date(Date.now() + ttl * 1000);
     const token = sign({
@@ -92,6 +111,8 @@ export class LocalStorage implements Storage {
       m: "GET",
       t: expiresAt.getTime(),
       n: randomBytes(8).toString("hex"),
+      u: input.actor.userId,
+      o: input.actor.organizationId,
     });
     const url = `${env.NEXTAUTH_URL.replace(/\/$/, "")}/api/storage/download?token=${encodeURIComponent(token)}`;
     return { url, expiresAt };

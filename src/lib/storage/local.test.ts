@@ -32,18 +32,26 @@ describe("LocalStorage adapter", () => {
     expect(await storage.exists("foo/bar.txt")).toBe(false);
     expect(await storage.exists("baz/bar.txt")).toBe(true);
 
+    const actor = { userId: "user-1", organizationId: "org-1" };
     const put = await storage.presignedPut({
       key: "uploads/x.jpg",
       contentType: "image/jpeg",
       ttlSeconds: 60,
+      actor,
     });
     expect(put.url).toContain("/api/storage/upload?token=");
     const token = new URL(put.url).searchParams.get("token") ?? "";
     const sig = verifyLocalSignature(token, "PUT");
     expect(sig?.k).toBe("uploads/x.jpg");
     expect(sig?.c).toBe("image/jpeg");
+    expect(sig?.u).toBe("user-1");
+    expect(sig?.o).toBe("org-1");
 
-    const get = await storage.presignedGet({ key: "baz/bar.txt", ttlSeconds: 60 });
+    const get = await storage.presignedGet({
+      key: "baz/bar.txt",
+      ttlSeconds: 60,
+      actor,
+    });
     expect(get.url).toContain("/api/storage/download?token=");
     const dlToken = new URL(get.url).searchParams.get("token") ?? "";
     expect(verifyLocalSignature(dlToken, "GET")?.k).toBe("baz/bar.txt");
@@ -61,5 +69,20 @@ describe("LocalStorage adapter", () => {
     await expect(
       storage.putObjectBytes("../etc/passwd", Buffer.from("nope"), "text/plain"),
     ).rejects.toThrow(/Invalid storage key/);
+  });
+
+  it("requires actor on presigned URLs (audit H5 — actor binding)", async () => {
+    const { LocalStorage } = await import("./local");
+    const storage = new LocalStorage();
+    await expect(
+      storage.presignedPut({
+        key: "no-actor.jpg",
+        contentType: "image/jpeg",
+        ttlSeconds: 60,
+      }),
+    ).rejects.toThrow(/actor/);
+    await expect(
+      storage.presignedGet({ key: "no-actor.jpg", ttlSeconds: 60 }),
+    ).rejects.toThrow(/actor/);
   });
 });

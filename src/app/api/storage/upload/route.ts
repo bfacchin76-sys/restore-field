@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, sep } from "node:path";
 import { LOCAL_STORAGE_ROOT, verifyLocalSignature } from "@/lib/storage/local";
+import { getSessionUser } from "@/lib/auth/session";
 
 // Local-storage adapter only — in production with MinIO/R2 the browser
 // PUTs directly to the S3 endpoint.
@@ -15,6 +16,17 @@ export async function PUT(request: NextRequest) {
       { status: 403 },
     );
   }
+
+  // Audit H5: bind the URL to its issuing session — a leaked URL can't
+  // be replayed by a different user.
+  const actor = await getSessionUser();
+  if (!actor || actor.id !== sig.u || actor.organizationId !== sig.o) {
+    return NextResponse.json(
+      { error: "Token does not match current session" },
+      { status: 403 },
+    );
+  }
+
   const ct = request.headers.get("content-type") ?? "";
   if (sig.c && sig.c !== ct) {
     return NextResponse.json(

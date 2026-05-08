@@ -4,6 +4,7 @@ import { stat } from "node:fs/promises";
 import { join, sep } from "node:path";
 import { Readable } from "node:stream";
 import { LOCAL_STORAGE_ROOT, verifyLocalSignature } from "@/lib/storage/local";
+import { getSessionUser } from "@/lib/auth/session";
 
 const MIME: Record<string, string> = {
   jpg: "image/jpeg",
@@ -29,6 +30,16 @@ export async function GET(request: NextRequest) {
       { status: 403 },
     );
   }
+
+  // Audit H5: bind the URL to its issuing session.
+  const actor = await getSessionUser();
+  if (!actor || actor.id !== sig.u || actor.organizationId !== sig.o) {
+    return NextResponse.json(
+      { error: "Token does not match current session" },
+      { status: 403 },
+    );
+  }
+
   const path = join(LOCAL_STORAGE_ROOT, sig.k.split("/").join(sep));
   let size: number;
   try {

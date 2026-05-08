@@ -34,6 +34,8 @@ export const REPORT_PAGE_CSS = `
     padding: 14pt 0.6in;
     display: flex; align-items: center; justify-content: space-between;
   }
+  .header .brand { display: flex; align-items: center; gap: 10pt; }
+  .header .brand-logo { max-height: 28pt; max-width: 140pt; object-fit: contain; display: block; }
   .header .brand-name { font-size: 16pt; font-weight: 700; letter-spacing: 0.02em; }
   .header .brand-meta { font-size: 9pt; opacity: 0.85; text-align: right; }
 
@@ -85,7 +87,12 @@ export const REPORT_FOOTER_TEMPLATE = `
 
 const HEADER_BAND = `
 <header class="header">
-  <div class="brand-name">{{org.name}}</div>
+  <div class="brand">
+    {{#if org.logoDataUrl}}
+    <img class="brand-logo" src="{{{org.logoDataUrl}}}" alt="{{org.name}} logo"/>
+    {{/if}}
+    <div class="brand-name">{{org.name}}</div>
+  </div>
   <div class="brand-meta">
     {{#if org.licenseNumber}}License {{org.licenseNumber}}<br/>{{/if}}
     Job {{job.jobNumber}}

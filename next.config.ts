@@ -10,20 +10,42 @@ import type { NextConfig } from "next";
  *     fresh nonce — out of scope for v1).
  *   - style-src: 'self' + 'unsafe-inline' for Tailwind / shadcn inline
  *     style attributes.
- *   - img-src: data: blob: for embedded photo previews + signature
- *     captures, plus storage origins.
- *   - connect-src: 'self' for Server Actions; storage origin so the
- *     browser can PUT directly to S3-presigned URLs.
+ *   - img-src: explicit storage origin only (no `https:` wildcard).
+ *   - connect-src: 'self' for Server Actions; explicit storage origin
+ *     so the browser can PUT directly to S3-presigned URLs. Audit H2:
+ *     a `https:` wildcard here lets any XSS payload exfil to any
+ *     server, defeating the CSP's main purpose.
  *   - frame-ancestors 'none' makes this site un-embeddable.
  *   - form-action 'self' restricts where forms POST.
  */
+
+/**
+ * Resolve the origin of `S3_ENDPOINT` at build time (next.config runs
+ * once at `next build`). Returns an empty array if the endpoint is
+ * unset, "local", or unparseable — in those cases the LocalStorage
+ * adapter serves uploads from /api/storage/* which already lives at
+ * 'self', so no extra origin is needed.
+ */
+function storageOrigins(): string[] {
+  const endpoint = process.env.S3_ENDPOINT?.trim();
+  if (!endpoint) return [];
+  try {
+    const u = new URL(endpoint);
+    return [u.origin];
+  } catch {
+    return [];
+  }
+}
+
+const STORAGE_ORIGINS = storageOrigins();
+
 const cspDirectives: Record<string, string[]> = {
   "default-src": ["'self'"],
   "script-src": ["'self'", "'unsafe-inline'"],
   "style-src": ["'self'", "'unsafe-inline'"],
-  "img-src": ["'self'", "data:", "blob:", "https:"],
+  "img-src": ["'self'", "data:", "blob:", ...STORAGE_ORIGINS],
   "font-src": ["'self'", "data:"],
-  "connect-src": ["'self'", "https:"],
+  "connect-src": ["'self'", ...STORAGE_ORIGINS],
   "object-src": ["'self'", "blob:"],
   "frame-src": ["'self'", "blob:"],
   "frame-ancestors": ["'none'"],

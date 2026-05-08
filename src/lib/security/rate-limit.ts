@@ -102,15 +102,34 @@ export async function clearRateLimit(key: string): Promise<void> {
 }
 
 /**
- * Best-effort client IP from the X-Forwarded-For chain Caddy sets.
- * Falls back to "unknown" so a missing header still lets us rate-limit
- * by something instead of zero-keying every request together.
+ * Best-effort client IP. Audit H6: take the *rightmost* `TRUSTED_PROXY_HOPS`
+ * entry of XFF (default 1: Caddy is the only proxy). If a misconfigured
+ * upstream PREPENDS attacker-supplied XFF, the rightmost entry is still
+ * the value our trusted proxy stamped, not the spoof.
+ *
+ * In our docker-compose deployment Caddy's `header_up X-Forwarded-For
+ * {remote_host}` overwrites XFF with the immediate peer, so a single
+ * value is the norm. This logic is the belt-and-braces in case the app
+ * gets fronted by something else.
  */
 export async function clientIp(): Promise<string> {
   try {
+    const hops = Math.max(
+      1,
+      Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? "1", 10) || 1,
+    );
     const h = await headers();
     const xff = h.get("x-forwarded-for");
-    if (xff) return xff.split(",")[0]!.trim();
+    if (xff) {
+      const parts = xff
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (parts.length > 0) {
+        const idx = Math.max(0, parts.length - hops);
+        return parts[idx]!;
+      }
+    }
     const xri = h.get("x-real-ip");
     if (xri) return xri.trim();
   } catch {

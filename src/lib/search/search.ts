@@ -39,9 +39,12 @@ export async function searchAcross({
 
   // Postgres `plainto_tsquery` accepts arbitrary user input safely (no
   // operator parsing). Trigram lookups use `%` similarity for
-  // partial-text fallback.
+  // partial-text fallback. ILIKE wildcard chars in the user input are
+  // escaped so a single-character query of `%` doesn't match every row
+  // in every table (DoS — see audit finding H1).
   const tsQuery = q;
-  const ilike = `%${q}%`;
+  const escapedForLike = q.replace(/[\\%_]/g, "\\$&");
+  const ilike = `%${escapedForLike}%`;
 
   const [jobs, customers, photos] = await Promise.all([
     prisma.$queryRaw<

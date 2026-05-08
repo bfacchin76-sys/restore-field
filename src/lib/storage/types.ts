@@ -20,6 +20,10 @@ export interface PresignedPutInput {
   maxSizeBytes?: number;
   /** Time-to-live in seconds. Default 15 minutes. */
   ttlSeconds?: number;
+  /** Issuing user/org. Required for the LocalStorage adapter (PRD §11
+   *  audit H5: signed URLs are bound to the requester so a leaked URL
+   *  can't be replayed by another session). S3Storage ignores this. */
+  actor?: { userId: string; organizationId: string };
 }
 
 export interface PresignedPut {
@@ -34,6 +38,9 @@ export interface PresignedPut {
 export interface PresignedGetInput {
   key: string;
   ttlSeconds?: number;
+  /** Same as PresignedPutInput.actor — required by LocalStorage,
+   *  ignored by S3Storage. */
+  actor?: { userId: string; organizationId: string };
 }
 
 export interface PresignedGet {
