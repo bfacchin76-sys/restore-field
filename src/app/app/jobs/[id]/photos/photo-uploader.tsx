@@ -73,6 +73,32 @@ export function PhotoUploader({ jobId, rooms }: UploaderProps) {
   const upload = () => {
     if (queue.length === 0) return;
     startTransition(async () => {
+      // Offline shortcut: queue every blob locally; the sync engine will
+      // upload them when the network returns.
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        try {
+          const { enqueuePhoto } = await import("@/lib/offline/sync");
+          for (const item of queue) {
+            await enqueuePhoto({
+              jobId,
+              roomId: defaultRoomId || null,
+              filename: item.file.name,
+              mimeType: item.file.type || "image/jpeg",
+              size: item.file.size,
+              blob: item.file,
+              caption: null,
+              tags: [],
+              salvageability: null,
+            });
+            setItem(item.localId, { status: "uploaded", progress: 100 });
+          }
+          setDone({ count: queue.length });
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Offline queue failed");
+        }
+        return;
+      }
+
       try {
         const presigned = await presignPhotoUploads({
           jobId,

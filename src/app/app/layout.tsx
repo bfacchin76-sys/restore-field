@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth/session";
 import { SignOutButton } from "@/components/sign-out-button";
+import { SyncStatus } from "@/components/sync-status";
 
 export default async function AppLayout({
   children,
@@ -60,6 +61,7 @@ export default async function AppLayout({
             <span className="text-muted-foreground">
               {userRow?.name} · {user.role.replace("_", " ").toLowerCase()}
             </span>
+            <SyncStatus />
             <SignOutButton />
           </nav>
         </div>

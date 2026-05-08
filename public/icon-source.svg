@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- FieldRestore PWA icon (maskable safe zone: center 80%) -->
+  <rect width="512" height="512" rx="96" fill="#1e3a8a"/>
+  <!-- Wave / water motif -->
+  <path d="M64 304 C 128 248, 192 360, 256 304 S 384 248, 448 304 L 448 384 L 64 384 Z"
+        fill="#3b82f6" opacity="0.55"/>
+  <path d="M64 344 C 128 288, 192 400, 256 344 S 384 288, 448 344 L 448 384 L 64 384 Z"
+        fill="#60a5fa" opacity="0.85"/>
+  <!-- Wordmark -->
+  <text x="256" y="220"
+        font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="80"
+        font-weight="800"
+        fill="#ffffff"
+        text-anchor="middle"
+        letter-spacing="-2">FR</text>
+  <text x="256" y="160"
+        font-family="ui-sans-serif, system-ui, sans-serif"
+        font-size="22"
+        font-weight="600"
+        fill="#bfdbfe"
+        text-anchor="middle"
+        letter-spacing="6">FIELD</text>
+</svg>

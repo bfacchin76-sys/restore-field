@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef } from "react";
-import type { Material, MeterType } from "@prisma/client";
+import { useActionState, useEffect, useId, useRef, useState, useTransition } from "react";
+import type { Material, MeterType, ScaleType } from "@prisma/client";
 import { createReading, type ReadingActionResult } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,17 +26,84 @@ export function ReadingForm({
   meterTypes,
 }: ReadingFormProps) {
   const [state, formAction, pending] = useActionState(createReading, initial);
+  const [offlineState, setOfflineState] = useState<ReadingActionResult>(initial);
+  const [offlinePending, startOfflineTransition] = useTransition();
   const valueRef = useRef<HTMLInputElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const datalistId = useId();
 
   // After a successful submit, refocus the value input so the next reading
   // can be punched in immediately. PRD §14 DoD: <10s per reading.
   useEffect(() => {
-    if (state.ok) valueRef.current?.focus();
-  }, [state.ok]);
+    if (state.ok || offlineState.ok) valueRef.current?.focus();
+  }, [state.ok, offlineState.ok]);
+
+  // Reset the form on successful offline-queue (the server action does
+  // this automatically on success; mirror it for parity).
+  useEffect(() => {
+    if (offlineState.ok) {
+      formRef.current?.reset();
+    }
+  }, [offlineState.ok]);
+
+  const handleOfflineSubmit = async (fd: FormData) => {
+    const moistureValue = Number(fd.get("moistureValue"));
+    if (!Number.isFinite(moistureValue)) {
+      setOfflineState({ ok: false, message: "Enter a numeric reading." });
+      return;
+    }
+    const surface = String(fd.get("surface") ?? "").trim();
+    if (!surface) {
+      setOfflineState({ ok: false, message: "Surface is required." });
+      return;
+    }
+    try {
+      const { enqueueReading } = await import("@/lib/offline/sync");
+      await enqueueReading({
+        jobId,
+        roomId: (String(fd.get("roomId") ?? "") || null) as string | null,
+        surface,
+        material: String(fd.get("material") ?? "DRYWALL") as Material,
+        meterType: String(fd.get("meterType") ?? "PIN") as MeterType,
+        scaleType: "PERCENT_MC" as ScaleType,
+        moistureValue,
+        ambientTempF: null,
+        ambientRH: null,
+        isDryGoal: fd.get("isDryGoal") === "true",
+        isInitial: fd.get("isInitial") === "true",
+        notes: (String(fd.get("notes") ?? "").trim() || null) as string | null,
+      });
+      setOfflineState({
+        ok: true,
+        message: "Saved offline — will sync when you're back online.",
+        surface,
+      });
+    } catch (err) {
+      setOfflineState({
+        ok: false,
+        message: err instanceof Error ? err.message : "Queue failed",
+      });
+    }
+  };
+
+  const submitState = offlineState.message ? offlineState : state;
+  const isPending = pending || offlinePending;
 
   return (
-    <form action={formAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <form
+      ref={formRef}
+      action={formAction}
+      onSubmit={(e) => {
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          startOfflineTransition(async () => {
+            await handleOfflineSubmit(fd);
+          });
+        }
+      }}
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+    >
       <input type="hidden" name="jobId" value={jobId} />
 
       <div className="space-y-1.5 sm:col-span-2">
@@ -158,17 +225,17 @@ export function ReadingForm({
         <Input id="rf-notes" name="notes" placeholder="e.g. behind oven" />
       </div>
 
-      {state.message ? (
+      {submitState.message ? (
         <div className="sm:col-span-4">
-          <Alert variant={state.ok ? "success" : "destructive"}>
-            <AlertDescription>{state.message}</AlertDescription>
+          <Alert variant={submitState.ok ? "success" : "destructive"}>
+            <AlertDescription>{submitState.message}</AlertDescription>
           </Alert>
         </div>
       ) : null}
 
       <div className="flex items-end sm:col-span-4">
-        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-          {pending ? "Saving…" : "Save reading"}
+        <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
+          {isPending ? "Saving…" : "Save reading"}
         </Button>
       </div>
     </form>
