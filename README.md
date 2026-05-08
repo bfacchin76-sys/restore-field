@@ -100,8 +100,8 @@ We're working through PRD §14 sequentially. Each phase has a "Definition of Don
 - [x] Phase 8 — Offline / PWA
 - [x] Phase 9 — Reports
 - [x] Phase 10 — Sharing, polish, deployment
-- [x] **Phase 11** — Hardening (you are here)
-- [ ] Phase 12 — User testing & rollout
+- [x] Phase 11 — Hardening
+- [ ] **Phase 12** — User testing & rollout (see [docs/PHASE12_ROLLOUT.md](./docs/PHASE12_ROLLOUT.md))
 
 ## Production deployment runbook
 
