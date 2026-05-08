@@ -1,0 +1,162 @@
+# Production docker-compose stack for FieldRestore. PRD §13.
+#
+#   caddy   → reverse proxy + automatic HTTPS
+#   app     → Next.js (this image)
+#   worker  → BullMQ workers (same image, pnpm worker)
+#   postgres
+#   redis
+#   minio   → S3-compatible storage (skip if you point S3_ENDPOINT at R2/etc.)
+#   restic  → on-demand backup runner (manual `docker compose run`)
+#
+# All sensitive values come from `.env`. See `.env.example` and the
+# README "Deployment runbook" section for the full list.
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: ${DATABASE_URL}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  AUTH_SECRET: ${AUTH_SECRET}
+  NEXTAUTH_URL: ${NEXTAUTH_URL}
+  STORAGE_DRIVER: ${STORAGE_DRIVER:-s3}
+  S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+  S3_SECRET_KEY: ${S3_SECRET_KEY}
+  S3_BUCKET: ${S3_BUCKET:-fieldrestore}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+  SMTP_HOST: ${SMTP_HOST}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER}
+  SMTP_PASS: ${SMTP_PASS}
+  SMTP_FROM: ${SMTP_FROM}
+  INITIAL_OWNER_EMAIL: ${INITIAL_OWNER_EMAIL}
+  INITIAL_OWNER_PASSWORD: ${INITIAL_OWNER_PASSWORD:-}
+  ORG_NAME: ${ORG_NAME}
+  ORG_PRIMARY_COLOR: ${ORG_PRIMARY_COLOR:-#1e3a8a}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN}
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [edge]
+
+  app:
+    image: ${IMAGE:-ghcr.io/bfacchin76-sys/restore-field:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [edge, internal]
+
+  worker:
+    image: ${IMAGE:-ghcr.io/bfacchin76-sys/restore-field:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["pnpm", "worker"]
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks: [internal]
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fieldrestore}
+      POSTGRES_USER: ${POSTGRES_USER:-fieldrestore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fieldrestore}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks: [internal]
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    expose:
+      - "9000"
+      - "9001"
+    networks: [internal]
+
+  # On-demand backup runner: `docker compose run --rm restic backup`.
+  # See docker/restic-backup.sh for the full schedule (also runnable
+  # via host cron — see README runbook).
+  restic:
+    image: instrumentisto/restic:latest
+    restart: "no"
+    profiles: ["backup"]
+    environment:
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD}
+      AWS_ACCESS_KEY_ID: ${RESTIC_S3_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY: ${RESTIC_S3_SECRET_KEY:-}
+      PG_DSN: ${DATABASE_URL}
+    volumes:
+      - postgres_data:/data/postgres:ro
+      - minio_data:/data/minio:ro
+      - ./docker/restic-backup.sh:/restic-backup.sh:ro
+    entrypoint: ["sh", "/restic-backup.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:
+  internal:

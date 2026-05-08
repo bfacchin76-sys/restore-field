@@ -5,13 +5,15 @@ import { recordAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
+interface SharePermissions {
+  kind?: "report" | "job";
+  reportId?: string;
+  scopes?: { reportIds?: string[] };
+}
+
 /**
- * Public share endpoint. Adjusters / customers receive an email with
- * `/share/<token>` — no account needed.
- *
- * Validates the JobShare row (token unique, not revoked, not expired,
- * permissions blob references a real Report on the same job), stamps
- * lastUsedAt, audits the access, then streams the report PDF.
+ * Streams the *single* report attached to a `kind: "report"` JobShare —
+ * the URL the inline `<object>` on the share landing page renders.
  */
 export async function GET(
   _req: NextRequest,
@@ -20,16 +22,14 @@ export async function GET(
   const { token } = await ctx.params;
   const share = await prisma.jobShare.findUnique({
     where: { token },
-    include: {
-      job: { select: { id: true, jobNumber: true } },
-    },
+    include: { job: { select: { id: true, jobNumber: true } } },
   });
 
   if (!share || share.revoked || share.expiresAt.getTime() < Date.now()) {
     return new NextResponse("Link expired or revoked.", { status: 410 });
   }
 
-  const perms = (share.permissions ?? {}) as { reportId?: string };
+  const perms = (share.permissions ?? {}) as SharePermissions;
   if (!perms.reportId) {
     return new NextResponse("Share is not a report link.", { status: 400 });
   }

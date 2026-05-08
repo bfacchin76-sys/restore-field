@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { TotpManager } from "./totp-manager";
+import { NotificationPreferences } from "./notification-preferences";
+import { getPreferences } from "@/lib/notifications/preferences";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,8 @@ export default async function AccountPage() {
     select: { name: true, email: true, role: true, totpSecret: true },
   });
   if (!user) redirect("/login");
+
+  const prefs = await getPreferences(actor.id);
 
   return (
     <>
@@ -61,6 +65,19 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent>
           <TotpManager enabled={Boolean(user.totpSecret)} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Notification preferences</CardTitle>
+          <CardDescription>
+            Choose which job-flow events email you. New users start with the
+            sensible defaults.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <NotificationPreferences initial={prefs} />
         </CardContent>
       </Card>
     </>

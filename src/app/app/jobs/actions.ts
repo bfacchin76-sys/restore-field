@@ -10,6 +10,7 @@ import { assertCan } from "@/lib/authz";
 import { recordAudit } from "@/lib/audit";
 import { generateJobNumber } from "@/lib/business/job-number";
 import { assertCanTransition } from "@/lib/business/job-status";
+import { notifyJobStatusChange } from "@/lib/notifications/dispatch";
 
 export interface JobActionResult {
   ok: boolean;
@@ -229,6 +230,14 @@ export async function transitionJobStatus(
     { actor: { userId: actor.id }, jobId },
     { from: job.status, to, jobNumber: job.jobNumber },
   );
+
+  // Best-effort fan-out — won't block the action if SMTP is down.
+  await notifyJobStatusChange({
+    jobId,
+    fromStatus: job.status,
+    toStatus: to,
+    changedById: actor.id,
+  });
 
   revalidatePath(`/app/jobs/${jobId}`);
   revalidatePath("/app/jobs");

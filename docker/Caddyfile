@@ -1,0 +1,27 @@
+# Caddy reverse proxy for FieldRestore. Auto-HTTPS via Let's Encrypt.
+# Set DOMAIN in .env to fieldrestore.example.com.
+
+{$DOMAIN} {
+	# Trust only proxy headers we set ourselves; Caddy sets these by default.
+	encode zstd gzip
+
+	# Sensible security headers — refined further in Phase 11.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Frame-Options "SAMEORIGIN"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(self), geolocation=(self), microphone=()"
+	}
+
+	# Long-cache static assets the app emits (Next.js sets immutable hashes).
+	@assets path /_next/static/* /icons/* /manifest.webmanifest /sw.js
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	# Proxy everything else to the Next.js app on the internal network.
+	reverse_proxy app:3000 {
+		# Forward client IP / proto / host so Auth.js + audit log get them right.
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+	}
+}

@@ -41,6 +41,9 @@ export default async function AppLayout({
             <Link href="/app/customers" className="hover:underline">
               Customers
             </Link>
+            <Link href="/app/search" className="hover:underline">
+              Search
+            </Link>
             <Link href="/app/account" className="hover:underline">
               Account
             </Link>
@@ -62,6 +65,11 @@ export default async function AppLayout({
             {isOwner ? (
               <Link href="/app/admin/org" className="hover:underline">
                 Org
+              </Link>
+            ) : null}
+            {isOwner ? (
+              <Link href="/app/admin/import" className="hover:underline">
+                Import
               </Link>
             ) : null}
             <span className="text-muted-foreground">

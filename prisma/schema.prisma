@@ -67,8 +67,23 @@ model User {
   signaturesGiven  Signature[]
   reportsGenerated Report[]
   auditLogs        AuditLog[]
+  notificationPreference NotificationPreference?
 
   @@index([organizationId])
+}
+
+// Per-user notification toggles. Phase 10. Created lazily on first
+// preference change; the resolver treats a missing row as defaults.
+model NotificationPreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailJobStatusChange  Boolean  @default(true)
+  emailJobAssigned      Boolean  @default(true)
+  emailReportShared     Boolean  @default(false)
+  emailWeeklyDigest     Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 enum Role {

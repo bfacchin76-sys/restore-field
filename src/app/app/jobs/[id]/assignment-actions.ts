@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth/session";
 import { assertCan } from "@/lib/authz";
 import { recordAudit } from "@/lib/audit";
+import { notifyJobAssigned } from "@/lib/notifications/dispatch";
 
 const addSchema = z.object({
   jobId: z.string().min(1),
@@ -64,6 +65,12 @@ export async function addAssignment(input: z.infer<typeof addSchema>) {
     { actor: { userId: actor.id }, jobId: data.jobId },
     { targetUserId: data.userId, role: data.role, targetName: target.name },
   );
+
+  await notifyJobAssigned({
+    jobId: data.jobId,
+    userId: data.userId,
+    assignedById: actor.id,
+  });
 
   revalidatePath(`/app/jobs/${data.jobId}`);
 }
