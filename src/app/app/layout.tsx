@@ -19,6 +19,7 @@ export default async function AppLayout({
   });
 
   const isAdmin = user.role === "OWNER" || user.role === "OFFICE_ADMIN";
+  const isOwner = user.role === "OWNER";
 
   return (
     <div className="flex min-h-screen flex-col bg-muted/30">
@@ -56,6 +57,11 @@ export default async function AppLayout({
             {isAdmin ? (
               <Link href="/app/admin/users" className="hover:underline">
                 Admin
+              </Link>
+            ) : null}
+            {isOwner ? (
+              <Link href="/app/admin/org" className="hover:underline">
+                Org
               </Link>
             ) : null}
             <span className="text-muted-foreground">

@@ -10,13 +10,16 @@ import { Worker } from "bullmq";
 import {
   QUEUE_DAILY_COUNTS,
   QUEUE_IMAGE_PROCESS,
+  QUEUE_REPORT_GENERATE,
   scheduleDailyCountsCron,
   type DailyCountsJob,
   type ImageProcessJob,
+  type ReportGenerateJob,
 } from "./queues";
 import { getRedis } from "./connection";
 import { processImageJob } from "./processors/image-process";
 import { processDailyCountsJob } from "./processors/daily-counts";
+import { processReportGenerateJob } from "./processors/report-generate";
 import { logger } from "@/lib/logger";
 
 export function startImageProcessWorker(): Worker<ImageProcessJob> {
@@ -37,6 +40,31 @@ export function startImageProcessWorker(): Worker<ImageProcessJob> {
     logger.error(
       { photoId: job?.data.photoId, err: err.message, attempts: job?.attemptsMade },
       "image-process failed",
+    ),
+  );
+
+  return worker;
+}
+
+export function startReportGenerateWorker(): Worker<ReportGenerateJob> {
+  const worker = new Worker<ReportGenerateJob>(
+    QUEUE_REPORT_GENERATE,
+    async (job) => processReportGenerateJob(job.data),
+    {
+      connection: getRedis(),
+      // Puppeteer is heavy; cap concurrency.
+      concurrency: 1,
+    },
+  );
+
+  worker.on("ready", () => logger.info("report-generate worker ready"));
+  worker.on("completed", (job) =>
+    logger.info({ reportId: job.data.reportId }, "report generated"),
+  );
+  worker.on("failed", (job, err) =>
+    logger.error(
+      { reportId: job?.data.reportId, err: err.message, attempts: job?.attemptsMade },
+      "report-generate failed",
     ),
   );
 

@@ -4,6 +4,7 @@ import { getRedis } from "./connection";
 
 export const QUEUE_IMAGE_PROCESS = "image-process";
 export const QUEUE_DAILY_COUNTS = "equipment-daily-counts";
+export const QUEUE_REPORT_GENERATE = "report-generate";
 
 export interface ImageProcessJob {
   photoId: string;
@@ -20,8 +21,16 @@ export interface DailyCountsJob {
   day: string;
 }
 
+export interface ReportGenerateJob {
+  /** Existing `Report.id` row to (re)generate the PDF for. The Server
+   *  Action creates the row first with the snapshot already collected;
+   *  the worker just renders + uploads the PDF. */
+  reportId: string;
+}
+
 let cachedImageQueue: Queue<ImageProcessJob> | null = null;
 let cachedDailyCountsQueue: Queue<DailyCountsJob> | null = null;
+let cachedReportQueue: Queue<ReportGenerateJob> | null = null;
 
 export function getImageProcessQueue(): Queue<ImageProcessJob> {
   if (cachedImageQueue) return cachedImageQueue;
@@ -49,6 +58,20 @@ export function getDailyCountsQueue(): Queue<DailyCountsJob> {
     },
   });
   return cachedDailyCountsQueue;
+}
+
+export function getReportGenerateQueue(): Queue<ReportGenerateJob> {
+  if (cachedReportQueue) return cachedReportQueue;
+  cachedReportQueue = new Queue<ReportGenerateJob>(QUEUE_REPORT_GENERATE, {
+    connection: getRedis(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 10_000 },
+      removeOnComplete: { age: 7 * 24 * 60 * 60, count: 200 },
+      removeOnFail: { age: 30 * 24 * 60 * 60 },
+    },
+  });
+  return cachedReportQueue;
 }
 
 /**

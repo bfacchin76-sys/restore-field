@@ -21,11 +21,15 @@ model Organization {
   slug String @unique
 
   // Branding for reports
-  logoUrl         String?
-  primaryColor    String  @default("#1e3a8a")
-  reportFooter    String?
+  logoUrl            String?
+  primaryColor       String  @default("#1e3a8a")
+  reportFooter       String?
   // Used by the job-number generator: {prefix}-{year}-{0001..9999}
-  jobNumberPrefix String  @default("JOB")
+  jobNumberPrefix    String  @default("JOB")
+  // Used in Estimate Proposal report (PRD §8.7).
+  salesTaxRate       Float   @default(0.08625) // Nassau County NY default
+  overheadProfitRate Float   @default(0.20)
+  licenseNumber      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

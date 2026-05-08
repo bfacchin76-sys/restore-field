@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Organization" ADD COLUMN     "licenseNumber" TEXT,
+ADD COLUMN     "overheadProfitRate" DOUBLE PRECISION NOT NULL DEFAULT 0.20,
+ADD COLUMN     "salesTaxRate" DOUBLE PRECISION NOT NULL DEFAULT 0.08625;
