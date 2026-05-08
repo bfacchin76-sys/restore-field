@@ -41,9 +41,9 @@ export default async function Home() {
     <main className="flex min-h-screen items-center justify-center bg-muted/30 px-6 py-16">
       <Card className="w-full max-w-xl">
         <CardHeader>
-          <CardDescription>RestoreField</CardDescription>
+          <CardDescription>FieldRestore</CardDescription>
           <CardTitle>
-            {status.ok ? "RestoreField is alive" : "RestoreField is starting"}
+            {status.ok ? "FieldRestore is alive" : "FieldRestore is starting"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">

@@ -28,7 +28,7 @@ export function LoginForm({ next }: { next: string }) {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle className="text-xl">Sign in to RestoreField</CardTitle>
+        <CardTitle className="text-xl">Sign in to FieldRestore</CardTitle>
         <CardDescription>
           Use your work email and password.
         </CardDescription>

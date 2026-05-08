@@ -107,7 +107,7 @@ function Wrapper({
       </Card>
       <p className="text-center text-xs text-muted-foreground">
         <Link href="/" className="hover:underline">
-          ← Back to RestoreField
+          ← Back to FieldRestore
         </Link>
       </p>
     </main>

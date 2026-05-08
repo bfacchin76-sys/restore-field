@@ -1,6 +1,6 @@
-# RestoreField
+# FieldRestore
 
-Self-hosted property-restoration field documentation app for 1-800 Water Damage of Nassau County. See [RESTOREFIELD_PRD.md](./RESTOREFIELD_PRD.md) for the full product/architecture spec.
+Self-hosted property-restoration field documentation app for 1-800 Water Damage of Nassau County. See [FIELDRESTORE_PRD.md](./FIELDRESTORE_PRD.md) for the full product/architecture spec.
 
 ## Tech stack
 
@@ -59,9 +59,9 @@ Open <http://localhost:3000>. Phase 0 only renders an "alive" page that confirms
 
 If Docker isn't available, you can run the same services natively. Make sure they listen on:
 
-- Postgres on `localhost:5432` with database `restorefield`, user `restorefield`, password `restorefield` (and a `restorefield_shadow` DB for Prisma migrations).
+- Postgres on `localhost:5432` with database `fieldrestore`, user `fieldrestore`, password `fieldrestore` (and a `fieldrestore_shadow` DB for Prisma migrations).
 - Redis on `localhost:6379`.
-- MinIO on `localhost:9000` with bucket `restorefield`.
+- MinIO on `localhost:9000` with bucket `fieldrestore`.
 
 Adjust `.env.local` if your local setup differs.
 
@@ -82,7 +82,7 @@ Adjust `.env.local` if your local setup differs.
 │   └── hooks/
 ├── docker-compose.dev.yml    # Local Postgres/Redis/MinIO
 ├── .env.example              # Template — copy to .env.local
-└── RESTOREFIELD_PRD.md       # Product + architecture spec
+└── FIELDRESTORE_PRD.md       # Product + architecture spec
 ```
 
 ## Build phases

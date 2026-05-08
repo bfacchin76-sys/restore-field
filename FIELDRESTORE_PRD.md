@@ -1,4 +1,4 @@
-# RestoreField — Product Requirements & Architecture Spec
+# FieldRestore — Product Requirements & Architecture Spec
 
 **Version:** 1.0
 **Owner:** Brian Facchin (1-800 Water Damage of Nassau County)
@@ -19,7 +19,7 @@ When in doubt, prefer **boring, proven technology** over clever choices. This is
 
 ## 1. Executive Summary
 
-RestoreField is a self-hosted web application for documenting property-restoration jobs in the field. It replaces the field-documentation, sketching, moisture-tracking, equipment-tracking, and reporting features of Encircle for a single restoration franchise (initially 1-800 Water Damage of Nassau County, with multi-tenant capacity for future expansion to other businesses in the owner's portfolio).
+FieldRestore is a self-hosted web application for documenting property-restoration jobs in the field. It replaces the field-documentation, sketching, moisture-tracking, equipment-tracking, and reporting features of Encircle for a single restoration franchise (initially 1-800 Water Damage of Nassau County, with multi-tenant capacity for future expansion to other businesses in the owner's portfolio).
 
 **It does NOT clone:**
 
@@ -55,7 +55,7 @@ RestoreField is a self-hosted web application for documenting property-restorati
 
 ### Success metrics (12-month)
 
-- 100% of Nassau County water/fire/mold jobs documented in RestoreField
+- 100% of Nassau County water/fire/mold jobs documented in FieldRestore
 - Encircle subscription cancelled
 - Report turnaround from job start to adjuster-ready PDF: <24 hours
 - Zero data-loss incidents
@@ -1102,7 +1102,7 @@ This is what Brian sends to adjusters. **Quality and styling are non-negotiable.
 
 ### PWA requirements
 
-- Installable: manifest.json with icons (512x512, 192x192, maskable), short_name "RestoreField".
+- Installable: manifest.json with icons (512x512, 192x192, maskable), short_name "FieldRestore".
 - Service worker (Workbox via next-pwa) caches:
   - App shell (HTML, JS, CSS) — stale-while-revalidate
   - Static photos already viewed — cache-first, 30 days
@@ -1215,7 +1215,7 @@ Errors during processing:
 
 Document this in the in-app help so techs/estimators know the flow.
 
-1. In the field, draw the sketch in RestoreField.
+1. In the field, draw the sketch in FieldRestore.
 1. From the sketch view, tap **Export → Xactimate Underlay**.
 1. App generates PNG (2x DPI, scale bar visible, room labels visible, dimensions visible).
 1. Download PNG to estimator's machine.
@@ -1257,9 +1257,9 @@ REDIS_URL=redis://...
 S3_ENDPOINT=...
 S3_ACCESS_KEY=...
 S3_SECRET_KEY=...
-S3_BUCKET=restorefield
+S3_BUCKET=fieldrestore
 NEXTAUTH_SECRET=...
-NEXTAUTH_URL=https://restorefield.example.com
+NEXTAUTH_URL=https://fieldrestore.example.com
 SMTP_HOST=...
 SMTP_USER=...
 SMTP_PASS=...
@@ -1298,7 +1298,7 @@ Each phase is sized for ~one Claude Code session. Run them in order. Do not skip
 
 **Tasks:**
 
-1. `npx create-next-app@latest restorefield --ts --tailwind --app --eslint --src-dir --import-alias "@/*"` (use Next.js 15+).
+1. `npx create-next-app@latest fieldrestore --ts --tailwind --app --eslint --src-dir --import-alias "@/*"` (use Next.js 15+).
 1. Install: `prisma @prisma/client zod @auth/core next-auth react-hook-form @hookform/resolvers @tanstack/react-query bullmq ioredis sharp puppeteer pino dexie konva react-konva recharts handlebars`.
 1. Install dev deps: `tsx vitest @vitest/ui @testing-library/react @testing-library/user-event prettier @types/node`.
 1. Initialize shadcn/ui: `npx shadcn@latest init`. Add components as needed: `button input label card dialog form select textarea table tabs sheet toast dropdown-menu`.
@@ -1306,7 +1306,7 @@ Each phase is sized for ~one Claude Code session. Run them in order. Do not skip
 1. Set up `.env.example` and `.env.local`.
 1. Write the Prisma schema from Section 6 verbatim. Run `prisma migrate dev --name init`.
 1. Write `prisma/seed.ts` per spec. Run `prisma db seed`.
-1. Stub a single page at `/` that renders "RestoreField is alive" if the DB connection works.
+1. Stub a single page at `/` that renders "FieldRestore is alive" if the DB connection works.
 
 **Definition of done:**
 

@@ -1,4 +1,4 @@
-// Prisma schema for RestoreField — see RESTOREFIELD_PRD.md Section 6.
+// Prisma schema for FieldRestore — see FIELDRESTORE_PRD.md Section 6.
 // This file is the source of truth for the data model.
 
 generator client {

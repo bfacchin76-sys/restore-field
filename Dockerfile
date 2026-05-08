@@ -1,4 +1,4 @@
-# RestoreField multi-stage Dockerfile.
+# FieldRestore multi-stage Dockerfile.
 #
 # The same image is run with two different commands per PRD §5/§13:
 #   - app:    `node server.js`         (Next.js standalone server)

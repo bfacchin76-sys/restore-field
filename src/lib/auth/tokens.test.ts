@@ -8,7 +8,7 @@ import {
   purgeExpiredTokens,
 } from "./tokens";
 
-const TEST_EMAIL = "tokens-test@restorefield.local";
+const TEST_EMAIL = "tokens-test@fieldrestore.local";
 
 beforeAll(async () => {
   await prisma.verificationToken.deleteMany({

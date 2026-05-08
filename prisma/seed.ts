@@ -1,5 +1,5 @@
 /**
- * Idempotent seed script — see RESTOREFIELD_PRD.md §6 + §13.
+ * Idempotent seed script — see FIELDRESTORE_PRD.md §6 + §13.
  *
  * Creates (only if they don't already exist):
  *   - one Organization, slug from ORG_SLUG env (default "1800wd-nassau")

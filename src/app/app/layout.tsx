@@ -24,7 +24,7 @@ export default async function AppLayout({
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-6 px-6 py-3">
           <Link href="/app" className="text-sm font-semibold tracking-tight">
-            RestoreField
+            FieldRestore
           </Link>
           <span className="text-xs text-muted-foreground">
             {userRow?.organization.name}

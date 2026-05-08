@@ -57,7 +57,7 @@ export async function issueSubcontractorMagicLink(
     where: { id: input.organizationId },
     select: { name: true },
   });
-  const tpl = subcontractorMagicLinkEmail(org?.name ?? "RestoreField", rawToken);
+  const tpl = subcontractorMagicLinkEmail(org?.name ?? "FieldRestore", rawToken);
   await sendMail({ to: email, ...tpl });
 
   return { rawToken, expiresAt };

@@ -13,7 +13,7 @@ export interface TotpSetup {
 
 export async function generateTotpSetup(
   email: string,
-  issuer = "RestoreField",
+  issuer = "FieldRestore",
 ): Promise<TotpSetup> {
   const secret = authenticator.generateSecret();
   const otpauthUrl = authenticator.keyuri(email, issuer, secret);

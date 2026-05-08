@@ -4,10 +4,10 @@ import { generateTotpSetup, verifyTotp } from "./totp";
 
 describe("TOTP", () => {
   it("generates a working secret + otpauth URL", async () => {
-    const setup = await generateTotpSetup("user@example.com", "RestoreField");
+    const setup = await generateTotpSetup("user@example.com", "FieldRestore");
     expect(setup.secret).toMatch(/^[A-Z2-7]+$/);
     expect(setup.otpauthUrl).toContain("otpauth://totp/");
-    expect(setup.otpauthUrl).toContain(encodeURIComponent("RestoreField"));
+    expect(setup.otpauthUrl).toContain(encodeURIComponent("FieldRestore"));
     expect(setup.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
   });
 

@@ -19,7 +19,7 @@ export default async function AcceptInvitePage({
   const { token } = await searchParams;
   const tokenRow = token ? await findUsableToken(token, "INVITE") : null;
 
-  let orgName = "RestoreField";
+  let orgName = "FieldRestore";
   let invitedEmail = "";
   if (tokenRow?.organizationId) {
     const org = await prisma.organization.findUnique({

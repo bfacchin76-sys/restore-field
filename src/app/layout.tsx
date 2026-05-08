@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RestoreField",
+  title: "FieldRestore",
   description:
     "Self-hosted property-restoration field documentation for 1-800 Water Damage of Nassau County.",
 };

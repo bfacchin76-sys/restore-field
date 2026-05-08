@@ -63,7 +63,7 @@ export default async function MagicLinkPage({
     <main className="flex min-h-screen items-center justify-center bg-muted/30 px-6 py-12">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle>Sign in to RestoreField</CardTitle>
+          <CardTitle>Sign in to FieldRestore</CardTitle>
           <CardDescription>
             Click below to sign in as <strong>{tokenRow.email}</strong>.
           </CardDescription>

@@ -170,7 +170,7 @@ export async function resendForSigning(input: z.infer<typeof idInput>) {
     payload: { submissionId: sub.id },
   });
 
-  const tpl = formSignEmail(org?.name ?? "RestoreField", sub.template.name, rawToken);
+  const tpl = formSignEmail(org?.name ?? "FieldRestore", sub.template.name, rawToken);
   await sendMail({ to: sub.sentToEmail, ...tpl });
 
   await prisma.formSubmission.update({

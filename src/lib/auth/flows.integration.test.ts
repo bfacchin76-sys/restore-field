@@ -18,9 +18,9 @@ import {
   issueVerificationToken,
 } from "./tokens";
 
-const RESET_EMAIL = "flows-reset-test@restorefield.local";
-const INVITE_EMAIL = "flows-invite-test@restorefield.local";
-const MAGIC_EMAIL = "flows-magic-test@restorefield.local";
+const RESET_EMAIL = "flows-reset-test@fieldrestore.local";
+const INVITE_EMAIL = "flows-invite-test@fieldrestore.local";
+const MAGIC_EMAIL = "flows-magic-test@fieldrestore.local";
 
 let orgId: string;
 

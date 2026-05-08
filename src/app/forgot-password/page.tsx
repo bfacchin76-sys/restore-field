@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
         <CardHeader>
           <CardTitle className="text-xl">Reset your password</CardTitle>
           <CardDescription>
-            Enter the email on your RestoreField account and we&apos;ll send
+            Enter the email on your FieldRestore account and we&apos;ll send
             you a single-use reset link (valid for 1 hour).
           </CardDescription>
         </CardHeader>
