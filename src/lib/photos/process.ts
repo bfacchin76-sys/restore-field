@@ -30,6 +30,19 @@ const THUMB_QUALITY = 80;
 const MEDIUM_QUALITY = 85;
 
 /**
+ * Sharp can decode many formats; for our pipeline only photo-style
+ * raster images are valid. SVG would let user-content embed scripts;
+ * PDF / TIFF / RAW would surprise downstream code. PRD §11 task 6.
+ */
+const ALLOWED_IMAGE_FORMATS = new Set<string>([
+  "jpeg",
+  "png",
+  "webp",
+  "gif",
+  "heif",
+]);
+
+/**
  * Run the full Sharp pipeline against an uploaded image.
  *
  *   1. Detect format. If HEIC/HEIF, transcode to JPEG (the canonical "original").
@@ -44,9 +57,17 @@ export async function processImage(
   inputBytes: Buffer,
   uploadedMime: string,
 ): Promise<ProcessedImage> {
-  // 1. Sniff format
+  // 1. Sniff format. PRD §11: explicit allow-list rejection to keep
+  //    SVG / PDF / weird formats Sharp also understands out of the
+  //    photo pipeline. The presign endpoint screens by MIME (which can
+  //    be spoofed); this is the magic-byte gate.
   const baseMeta = await sharp(inputBytes).metadata();
   const format = baseMeta.format ?? "";
+  if (!ALLOWED_IMAGE_FORMATS.has(format)) {
+    throw new Error(
+      `Rejecting upload: detected format "${format || "unknown"}" is not an allowed photo type.`,
+    );
+  }
 
   // 2. Decide canonical original
   let originalBytes = inputBytes;

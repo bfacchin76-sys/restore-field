@@ -99,8 +99,8 @@ We're working through PRD §14 sequentially. Each phase has a "Definition of Don
 - [x] Phase 7 — Forms & e-signatures
 - [x] Phase 8 — Offline / PWA
 - [x] Phase 9 — Reports
-- [x] **Phase 10** — Sharing, polish, deployment (you are here)
-- [ ] Phase 11 — Hardening
+- [x] Phase 10 — Sharing, polish, deployment
+- [x] **Phase 11** — Hardening (you are here)
 - [ ] Phase 12 — User testing & rollout
 
 ## Production deployment runbook

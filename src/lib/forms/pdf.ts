@@ -2,6 +2,7 @@ import "server-only";
 import puppeteer from "puppeteer";
 import Handlebars from "handlebars";
 import { logger } from "@/lib/logger";
+import { newLockedPage } from "@/lib/security/puppeteer-lockdown";
 import { renderTemplate, type RenderContext, type FormSchema, type FormValues } from "./templates";
 
 export interface SignedPdfInput {
@@ -204,9 +205,10 @@ export async function renderSignedFormPdf(
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   try {
-    const page = await browser.newPage();
-    // Pass an inert base URL so any relative URLs (none, but defensive) don't
-    // try to fetch from the public internet.
+    // PRD §11: lock the page down before navigation. Any <img src=...>
+    // a user planted in a free-text field gets aborted instead of
+    // turning the PDF generator into an SSRF gadget.
+    const page = await newLockedPage(browser);
     await page.setContent(html, { waitUntil: "domcontentloaded" });
     const pdf = await page.pdf({
       format: "letter",

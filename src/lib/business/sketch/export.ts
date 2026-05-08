@@ -2,6 +2,7 @@ import "server-only";
 import sharp from "sharp";
 import puppeteer from "puppeteer";
 import { logger } from "@/lib/logger";
+import { newLockedPage } from "@/lib/security/puppeteer-lockdown";
 import { renderSceneSvg } from "./svg";
 import { totalAreas } from "./scene";
 import type { SketchScene } from "./types";
@@ -90,7 +91,9 @@ export async function exportScenePdf(input: ExportInput): Promise<ExportPdf> {
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   try {
-    const page = await browser.newPage();
+    // PRD §11: SSRF lockdown — block any external fetch from the
+    // sketch SVG before navigating.
+    const page = await newLockedPage(browser);
     await page.setContent(html, { waitUntil: "domcontentloaded" });
     const buf = await page.pdf({
       width: `${LETTER_LANDSCAPE_IN.width}in`,

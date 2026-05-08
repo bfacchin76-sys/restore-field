@@ -124,6 +124,23 @@ describe("processImage pipeline", () => {
     expect(r.takenAt).toBeInstanceOf(Date);
   });
 
+  it("rejects SVG bytes even when MIME claims image/svg", async () => {
+    // PRD §11: SVG can carry script — keep it out of the photo pipeline.
+    const svg = Buffer.from(
+      `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>`,
+    );
+    await expect(processImage(svg, "image/svg+xml")).rejects.toThrow(
+      /not an allowed photo type/,
+    );
+  });
+
+  it("rejects non-image bytes (PDF magic) with a clear error", async () => {
+    const pdfMagic = Buffer.from("%PDF-1.4\n%fake\n", "utf8");
+    // Sharp throws on metadata() for non-images; either Sharp's error or
+    // our gate fires — we just want a thrown error, not silent acceptance.
+    await expect(processImage(pdfMagic, "image/jpeg")).rejects.toThrow();
+  });
+
   it("transcodes HEIC to JPEG when libheif is available", async () => {
     // Try to round-trip an HEIC. If libheif isn't compiled into libvips,
     // skip — Sharp throws on encode. PRD §8.2 and §11 require this in

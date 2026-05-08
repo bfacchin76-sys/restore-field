@@ -3,6 +3,10 @@
 import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
 import { AUTH_ERRORS } from "@/auth";
+import {
+  checkAuthAttempt,
+  clearAuthAttempt,
+} from "@/lib/security/auth-throttle";
 
 export interface LoginActionResult {
   ok: boolean;
@@ -37,6 +41,17 @@ export async function loginAction(
     };
   }
 
+  // PRD §11: brute-force protection — 5 attempts per 15 min per email,
+  // 10 per 15 min per IP. Successful login clears the email counter.
+  const throttle = await checkAuthAttempt({ flow: "login", identifier: email });
+  if (!throttle.ok) {
+    return {
+      ok: false,
+      code: "RATE_LIMITED",
+      message: `Too many sign-in attempts. Try again in ${Math.ceil(throttle.retryAfterSeconds / 60)} min.`,
+    };
+  }
+
   try {
     await signIn("credentials", {
       email,
@@ -44,7 +59,7 @@ export async function loginAction(
       totp,
       redirectTo: next,
     });
-    // signIn throws to trigger the redirect; we never reach here on success.
+    // signIn always throws NEXT_REDIRECT on success.
     return { ok: true };
   } catch (err) {
     // Auth.js v5 throws NEXT_REDIRECT for successful redirects — re-throw.
@@ -55,6 +70,8 @@ export async function loginAction(
       typeof (err as { digest: unknown }).digest === "string" &&
       (err as { digest: string }).digest.startsWith("NEXT_REDIRECT")
     ) {
+      // Successful sign-in: refund the attempt budget.
+      await clearAuthAttempt({ flow: "login", identifier: email });
       throw err;
     }
     if (err instanceof AuthError) {

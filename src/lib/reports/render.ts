@@ -15,6 +15,7 @@ import puppeteer, { type Browser } from "puppeteer";
 import Handlebars from "handlebars";
 import { logger } from "@/lib/logger";
 import { formatUSD } from "@/lib/business/estimate";
+import { newLockedPage } from "@/lib/security/puppeteer-lockdown";
 import {
   LOSS_TYPE_LABELS,
   REPORT_FOOTER_TEMPLATE,
@@ -191,7 +192,9 @@ export async function renderReportPdf(
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     }));
   try {
-    const page = await browser.newPage();
+    // PRD §11: lock the page down before navigation so any malicious
+    // <img src=...> in user content can't trigger an outbound fetch.
+    const page = await newLockedPage(browser);
     await page.setContent(html, { waitUntil: "domcontentloaded" });
     const pdf = await page.pdf({
       format: "letter",

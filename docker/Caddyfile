@@ -5,13 +5,17 @@
 	# Trust only proxy headers we set ourselves; Caddy sets these by default.
 	encode zstd gzip
 
-	# Sensible security headers — refined further in Phase 11.
+	# Belt-and-braces security headers. The Next app sets a stricter
+	# CSP + Permissions-Policy via `next.config.ts`; Caddy keeps HSTS +
+	# X-Content-Type-Options as a backstop in case the upstream is slow
+	# to start and serves an error page directly. PRD §11 task 3.
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-		X-Frame-Options "SAMEORIGIN"
 		X-Content-Type-Options "nosniff"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		Permissions-Policy "camera=(self), geolocation=(self), microphone=()"
+		# The app itself sets X-Frame-Options DENY + a tighter
+		# Permissions-Policy; remove any version Caddy might set so
+		# the upstream's wins.
+		-Server
 	}
 
 	# Long-cache static assets the app emits (Next.js sets immutable hashes).

@@ -6,6 +6,7 @@ import { issueVerificationToken } from "@/lib/auth/tokens";
 import { passwordResetEmail } from "@/lib/auth/email-templates";
 import { sendMail } from "@/lib/mailer";
 import { recordAudit } from "@/lib/audit";
+import { checkAuthAttempt } from "@/lib/security/auth-throttle";
 
 const inputSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -27,6 +28,21 @@ export async function requestPasswordReset(
     return { ok: false, message: "Enter a valid email." };
   }
   const { email } = parsed.data;
+
+  // PRD §11: throttle send-email flows so an attacker can't spam SMTP
+  // for a victim mailbox. Tighter than login: 5/hour per email + 10/15m per IP.
+  const throttle = await checkAuthAttempt({
+    flow: "password-reset-request",
+    identifier: email,
+  });
+  if (!throttle.ok) {
+    // Same generic response to avoid leaking that the email is on file.
+    return {
+      ok: true,
+      message:
+        "If that email is on file, we've sent a reset link. Check your inbox (or, in dev, the server log).",
+    };
+  }
 
   const user = await prisma.user.findUnique({ where: { email } });
   // We always respond the same way; don't leak which emails exist.
