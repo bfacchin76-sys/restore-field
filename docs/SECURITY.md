@@ -189,12 +189,36 @@ A code audit after Phase 11 surfaced 8 issues; all fixed in one patch:
   `TRUSTED_PROXY_HOPS` (default 1) entries of XFF, so a misconfigured
   upstream that prepends user-supplied XFF doesn't bypass the IP limiter.
 
+## Post-audit medium-tier fixes (2026-05-08, follow-up)
+
+The deferred M-tier audit findings are now also addressed:
+
+- **M1 (auth-throttle key collision):** identifier value lowercased
+  separately from the namespace prefix, so an `IP:1.2.3.4`-shaped
+  identifier can't share a Redis bucket with the actual `ip:`
+  namespace. Regression test in `auth-throttle.test.ts`.
+- **M2 (login refund coupling):** `clearAuthAttempt` now runs inside
+  the credentials `authorize()` callback on positive auth, decoupled
+  from Auth.js's NEXT_REDIRECT digest format. The login action no
+  longer touches the throttle on success.
+- **M3 (snapshot validation):** report-generate worker validates the
+  snapshot shape via `isValidReportSnapshot` before handing to the
+  renderer; on failure it persists `processingError`, bumps
+  `processingAttempts`, and re-throws so BullMQ retries normally.
+- **M4 (Report failure visibility):** `Report.pdfStorageKey` is now
+  optional; new `processingError` and `processingAttempts` columns
+  mirror the Photo model. The reports list UI shows a "Failed —
+  regenerate to retry" badge plus the error message inline.
+- **M5 (share-route org double-check):** every share-scope route
+  (`/share/[token]/{pdf,photo/[id],report/[id]}`) and the
+  `/forms/sign` flow now confirms `resource.job.organizationId ===
+  share.job.organizationId` (or token-row's organizationId) in
+  addition to the existing jobId equality. Defense-in-depth against
+  any future bug that re-points a Job across orgs.
+
 ## Outstanding follow-ups
 
 - CSP nonces for `script-src` (Phase 11.5 / Phase 12).
 - WAF / IP-block-list at Caddy for repeat-offender IPs.
 - Add `X-Frame-Options: DENY` to Caddy as belt-and-braces (currently
   set by Next; some upstream errors bypass).
-- The Medium-tier defense-in-depth findings (M1–M5 in the audit
-  report) are deferred — none are exploitable today and they touch
-  schema or core auth flow, so they want their own focused phase.

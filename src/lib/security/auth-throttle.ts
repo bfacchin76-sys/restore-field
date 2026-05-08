@@ -37,8 +37,14 @@ interface CheckResult {
   retryAfterSeconds: number;
 }
 
-function key(flow: AuthFlow, suffix: string): string {
-  return `auth:${flow}:${suffix.toLowerCase()}`;
+/**
+ * Build a Redis key for a (flow, namespace, value) tuple. We lowercase
+ * the *value* only — never the namespace prefix — so `identifier:
+ * "IP:1.2.3.4"` can't collide with the `ip:` namespace bucket
+ * (audit M1).
+ */
+function key(flow: AuthFlow, ns: "id" | "ip", value: string): string {
+  return `auth:${flow}:${ns}:${value.toLowerCase()}`;
 }
 
 /**
@@ -55,7 +61,7 @@ export async function checkAuthAttempt(input: {
     input.flow === "magic-link-request";
 
   const idDecision = await checkRateLimit({
-    key: key(input.flow, `id:${input.identifier}`),
+    key: key(input.flow, "id", input.identifier),
     windowMs: isEmailSend ? EMAIL_SEND_WINDOW_MS : AUTH_WINDOW_MS,
     max: isEmailSend ? EMAIL_SEND_MAX : PER_IDENTIFIER_MAX,
   });
@@ -64,7 +70,7 @@ export async function checkAuthAttempt(input: {
   }
 
   const ipDecision = await checkRateLimit({
-    key: key(input.flow, `ip:${ip}`),
+    key: key(input.flow, "ip", ip),
     windowMs: AUTH_WINDOW_MS,
     max: PER_IP_MAX,
   });
@@ -80,5 +86,5 @@ export async function clearAuthAttempt(input: {
   flow: AuthFlow;
   identifier: string;
 }): Promise<void> {
-  await clearRateLimit(key(input.flow, `id:${input.identifier}`));
+  await clearRateLimit(key(input.flow, "id", input.identifier));
 }

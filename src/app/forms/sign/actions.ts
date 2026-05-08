@@ -91,6 +91,16 @@ export async function submitSignedForm(
     },
   });
   if (!submission) return { ok: false, message: "Submission not found" };
+  // Audit M5: defense-in-depth — bind the FORM_SIGN token's
+  // organisation to the submission's. The token's payload-id is the
+  // primary binding; this catch fires if a future bug ever moves a
+  // submission across orgs.
+  if (
+    tokenRow.organizationId &&
+    submission.job.organizationId !== tokenRow.organizationId
+  ) {
+    return { ok: false, message: "This signing link is for a different organisation." };
+  }
   if (submission.status === FormStatus.COMPLETED) {
     return {
       ok: false,

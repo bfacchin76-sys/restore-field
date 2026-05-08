@@ -598,9 +598,14 @@ model Report {
   job   Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
   type  ReportType
 
-  pdfStorageKey String
+  // Empty until the worker has stamped the final key.
+  pdfStorageKey String?
   dataSnapshot  Json
   config        Json
+
+  // Worker pipeline state (mirrors Photo).
+  processingError    String?
+  processingAttempts Int     @default(0)
 
   generatedById String
   generatedBy   User     @relation(fields: [generatedById], references: [id])

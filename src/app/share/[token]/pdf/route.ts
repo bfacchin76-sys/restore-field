@@ -22,7 +22,11 @@ export async function GET(
   const { token } = await ctx.params;
   const share = await prisma.jobShare.findUnique({
     where: { token },
-    include: { job: { select: { id: true, jobNumber: true } } },
+    include: {
+      job: {
+        select: { id: true, jobNumber: true, organizationId: true },
+      },
+    },
   });
 
   if (!share || share.revoked || share.expiresAt.getTime() < Date.now()) {
@@ -36,8 +40,14 @@ export async function GET(
 
   const report = await prisma.report.findUnique({
     where: { id: perms.reportId },
+    include: { job: { select: { organizationId: true } } },
   });
-  if (!report || report.jobId !== share.jobId) {
+  // Audit M5: defense-in-depth org check.
+  if (
+    !report ||
+    report.jobId !== share.jobId ||
+    report.job.organizationId !== share.job.organizationId
+  ) {
     return new NextResponse("Not found.", { status: 404 });
   }
   if (!report.pdfStorageKey) {

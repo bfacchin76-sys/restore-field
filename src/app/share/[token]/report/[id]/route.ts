@@ -24,7 +24,9 @@ export async function GET(
 
   const share = await prisma.jobShare.findUnique({
     where: { token },
-    include: { job: { select: { jobNumber: true } } },
+    include: {
+      job: { select: { jobNumber: true, organizationId: true } },
+    },
   });
   if (!share || share.revoked || share.expiresAt.getTime() < Date.now()) {
     return new NextResponse("Link expired or revoked.", { status: 410 });
@@ -38,8 +40,16 @@ export async function GET(
     return new NextResponse("Report not included in this share.", { status: 403 });
   }
 
-  const report = await prisma.report.findUnique({ where: { id } });
-  if (!report || report.jobId !== share.jobId) {
+  const report = await prisma.report.findUnique({
+    where: { id },
+    include: { job: { select: { organizationId: true } } },
+  });
+  // Audit M5: confirm both jobId and organizationId match.
+  if (
+    !report ||
+    report.jobId !== share.jobId ||
+    report.job.organizationId !== share.job.organizationId
+  ) {
     return new NextResponse("Not found.", { status: 404 });
   }
   if (!report.pdfStorageKey) {

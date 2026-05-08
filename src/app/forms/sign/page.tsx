@@ -36,6 +36,15 @@ export default async function SignFormPage({
     },
   });
   if (!submission) return invalid("Submission not found.");
+  // Audit M5: defense-in-depth — the FORM_SIGN token row binds an
+  // organisation; verify the submission lives in the same one before
+  // we render an in-progress form for signing.
+  if (
+    row.organizationId &&
+    submission.job.organizationId !== row.organizationId
+  ) {
+    return invalid("This signing link is for a different organisation.");
+  }
   if (submission.status === FormStatus.COMPLETED) {
     return (
       <Wrapper title="Already signed">

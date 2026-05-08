@@ -102,7 +102,8 @@ export async function generateReport(
     data: {
       jobId: data.jobId,
       type: data.reportType,
-      pdfStorageKey: "",
+      // pdfStorageKey stays NULL until the worker stamps it. Audit M4.
+      pdfStorageKey: null,
       // Prisma's Json type accepts our serialisable snapshot directly.
       dataSnapshot: snapshot as unknown as object,
       config: (config ?? {}) as unknown as object,
@@ -169,7 +170,9 @@ export async function regenerateReport(
     where: { id: reportId },
     data: {
       dataSnapshot: snapshot as unknown as object,
-      pdfStorageKey: "",
+      pdfStorageKey: null,
+      processingError: null,
+      processingAttempts: 0,
       generatedAt: new Date(),
       generatedById: actor.id,
     },

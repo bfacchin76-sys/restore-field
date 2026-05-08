@@ -22,7 +22,10 @@ export async function GET(
 ) {
   const { token, id } = await ctx.params;
 
-  const share = await prisma.jobShare.findUnique({ where: { token } });
+  const share = await prisma.jobShare.findUnique({
+    where: { token },
+    include: { job: { select: { organizationId: true } } },
+  });
   if (!share || share.revoked || share.expiresAt.getTime() < Date.now()) {
     return new NextResponse("Link expired or revoked.", { status: 410 });
   }
@@ -32,8 +35,18 @@ export async function GET(
     return new NextResponse("Photos not included in this share.", { status: 403 });
   }
 
-  const photo = await prisma.photo.findUnique({ where: { id } });
-  if (!photo || photo.jobId !== share.jobId) {
+  const photo = await prisma.photo.findUnique({
+    where: { id },
+    include: { job: { select: { organizationId: true } } },
+  });
+  // Audit M5: defense-in-depth — confirm both jobId AND organizationId
+  // agree, so even a future bug that re-points a Job across orgs can't
+  // exfil photos through a stale share.
+  if (
+    !photo ||
+    photo.jobId !== share.jobId ||
+    photo.job.organizationId !== share.job.organizationId
+  ) {
     return new NextResponse("Not found.", { status: 404 });
   }
   if (!photo.mediumKey) {

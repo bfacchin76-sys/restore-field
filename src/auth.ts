@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/passwords";
 import { verifyTotp } from "@/lib/auth/totp";
 import { findUsableToken, markTokenUsed } from "@/lib/auth/tokens";
+import { clearAuthAttempt } from "@/lib/security/auth-throttle";
 import { logger } from "@/lib/logger";
 
 /**
@@ -71,6 +72,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
           })
           .catch((err) => logger.warn({ err }, "audit log failed"));
+
+        // Audit M2: refund the throttle budget on positive auth here,
+        // not in the action's NEXT_REDIRECT-digest catch — Auth.js v5's
+        // redirect plumbing has changed across betas, and a non-redirect
+        // success path would otherwise leave the user counted toward
+        // their lockout.
+        await clearAuthAttempt({ flow: "login", identifier: email });
 
         return {
           id: user.id,

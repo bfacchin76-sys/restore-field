@@ -85,7 +85,7 @@ export default async function ShareTabPage({
                 id: r.id,
                 type: r.type,
                 generatedAt: r.generatedAt.toISOString(),
-                pdfReady: r.pdfStorageKey.length > 0,
+                pdfReady: Boolean(r.pdfStorageKey),
               }))}
             />
           </CardContent>

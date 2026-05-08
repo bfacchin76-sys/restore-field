@@ -69,6 +69,11 @@ async function main() {
   const email = `phase11-dod-${Date.now()}@example.com`;
   await clearAuthAttempt({ flow: "login", identifier: email });
 
+  // Outside a request context clientIp() returns "unknown" — purge any
+  // stale tickets accumulated by earlier DoD runs against that key.
+  const { getRedis } = await import("../src/lib/queue/connection");
+  await getRedis().del("rl:auth:login:ip:unknown");
+
   for (let i = 0; i < 5; i++) {
     const r = await checkAuthAttempt({ flow: "login", identifier: email });
     if (!r.ok) throw new Error(`auth-throttle blocked too early at ${i + 1}`);

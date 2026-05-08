@@ -365,7 +365,7 @@ function JobShareView({
     id: string;
     type: string;
     generatedAt: Date;
-    pdfStorageKey: string;
+    pdfStorageKey: string | null;
   }>;
   recipientEmail: string;
   expiresAt: Date;

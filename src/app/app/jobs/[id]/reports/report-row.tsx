@@ -12,6 +12,8 @@ interface Props {
   type: string;
   generatedAt: string;
   pdfReady: boolean;
+  /** Worker error message — surfaced when generation failed (audit M3+M4). */
+  processingError: string | null;
   generatedByName: string;
   canEdit: boolean;
 }
@@ -33,6 +35,7 @@ export function ReportRow({
   type,
   generatedAt,
   pdfReady,
+  processingError,
   generatedByName,
   canEdit,
 }: Props) {
@@ -87,6 +90,11 @@ export function ReportRow({
           <div className="text-xs text-muted-foreground">
             {generatedByName} · {new Date(generatedAt).toLocaleString("en-US")}
           </div>
+          {processingError && (
+            <div className="mt-1 max-w-md text-xs text-red-700">
+              {processingError}
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {pdfReady ? (
@@ -98,6 +106,10 @@ export function ReportRow({
             >
               View PDF
             </a>
+          ) : processingError ? (
+            <span className="inline-flex h-9 items-center rounded-md bg-red-50 px-3 text-sm text-red-700">
+              Failed — regenerate to retry
+            </span>
           ) : (
             <span className="inline-flex h-9 items-center rounded-md bg-yellow-50 px-3 text-sm text-yellow-700">
               Generating…

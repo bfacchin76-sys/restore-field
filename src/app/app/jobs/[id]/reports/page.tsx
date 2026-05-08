@@ -71,7 +71,8 @@ export default async function ReportsTabPage({
                   reportId={r.id}
                   type={r.type}
                   generatedAt={r.generatedAt.toISOString()}
-                  pdfReady={r.pdfStorageKey.length > 0}
+                  pdfReady={Boolean(r.pdfStorageKey)}
+                  processingError={r.processingError}
                   generatedByName={r.generatedBy.name}
                   canEdit={canGenerate}
                 />

@@ -3,10 +3,7 @@
 import { AuthError } from "next-auth";
 import { signIn } from "@/auth";
 import { AUTH_ERRORS } from "@/auth";
-import {
-  checkAuthAttempt,
-  clearAuthAttempt,
-} from "@/lib/security/auth-throttle";
+import { checkAuthAttempt } from "@/lib/security/auth-throttle";
 
 export interface LoginActionResult {
   ok: boolean;
@@ -59,7 +56,10 @@ export async function loginAction(
       totp,
       redirectTo: next,
     });
-    // signIn always throws NEXT_REDIRECT on success.
+    // signIn always throws NEXT_REDIRECT on success. The throttle
+    // budget is refunded inside the credentials authorize() callback
+    // on positive auth (audit M2), not here — that decouples the
+    // refund from Auth.js's redirect-digest format.
     return { ok: true };
   } catch (err) {
     // Auth.js v5 throws NEXT_REDIRECT for successful redirects — re-throw.
@@ -70,8 +70,6 @@ export async function loginAction(
       typeof (err as { digest: unknown }).digest === "string" &&
       (err as { digest: string }).digest.startsWith("NEXT_REDIRECT")
     ) {
-      // Successful sign-in: refund the attempt budget.
-      await clearAuthAttempt({ flow: "login", identifier: email });
       throw err;
     }
     if (err instanceof AuthError) {
