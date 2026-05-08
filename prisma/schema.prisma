@@ -64,6 +64,7 @@ model User {
   photosUploaded   Photo[]
   notesCreated     Note[]
   readingsTaken    MoistureReading[]
+  dryingLogsRecorded DryingLog[]
   signaturesGiven  Signature[]
   reportsGenerated Report[]
   auditLogs        AuditLog[]
@@ -421,6 +422,7 @@ model DryingLog {
 
   techNotes    String?  @db.Text
   recordedById String
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
   createdAt    DateTime @default(now())
 
   @@index([jobId, logDate])

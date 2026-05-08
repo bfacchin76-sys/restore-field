@@ -210,7 +210,6 @@ async function main() {
       photoId: photo.id,
       uploadKey: upKey,
       uploadedMime: f.mime,
-      uploadedExt: "jpg",
     });
   }
   const tUploaded = Date.now();

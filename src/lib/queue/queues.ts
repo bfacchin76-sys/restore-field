@@ -12,8 +12,6 @@ export interface ImageProcessJob {
   uploadKey: string;
   /** Reported MIME from the browser. */
   uploadedMime: string;
-  /** Reported extension from the original filename. */
-  uploadedExt: string;
 }
 
 export interface DailyCountsJob {

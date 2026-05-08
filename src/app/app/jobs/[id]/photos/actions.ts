@@ -226,7 +226,6 @@ export async function finalizePhotoUploads(
       photoId: u.photoId,
       uploadKey: u.uploadKey,
       uploadedMime: u.mimeType,
-      uploadedExt: u.uploadKey.split(".").pop() ?? "jpg",
     });
   }
 
