@@ -15,6 +15,15 @@ ENV PATH=$PNPM_HOME:$PATH
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
+# OpenSSL CLI lets Prisma's generator detect the right libssl version
+# so it emits the engine binary that matches the runtime stage (also
+# Debian 12, openssl 3.0). Without this it falls back to 1.1.x which
+# doesn't exist on the runtime image — causing the "libssl.so.1.1: no
+# such file" failure.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 COPY package.json pnpm-lock.yaml ./
@@ -24,6 +33,11 @@ RUN pnpm install --frozen-lockfile
 COPY prisma ./prisma
 RUN pnpm exec prisma generate
 
+# Build-time env placeholders. Next 16's "collect page data" pass
+# evaluates module-level code, and the app's env.ts validator
+# throws on missing required vars even though they're only used at
+# runtime. These are NEVER used at runtime — Fly secrets override
+# them at boot.
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build" \
     SHADOW_DATABASE_URL="postgresql://build:build@localhost:5432/build_shadow" \
     REDIS_URL="redis://localhost:6379" \
@@ -58,6 +72,7 @@ WORKDIR /app
 
 ARG PNPM_VERSION
 
+# Sharp + Puppeteer/Chromium runtime libs + HEIC.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       tini \
@@ -93,9 +108,13 @@ ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
+# Copy the dependency tree wholesale from the builder. With pnpm,
+# trying to COPY just ".prisma" fails (it lives inside .pnpm). Copying
+# the whole node_modules keeps the symlink structure intact and the
+# generated Prisma client comes along for free. Slightly larger image
+# than `pnpm install --prod`, but reliable.
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml ./
-COPY --from=builder /app/.npmrc* ./
-RUN pnpm install --prod --frozen-lockfile
+COPY --from=builder /app/node_modules ./node_modules
 
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
@@ -104,7 +123,6 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/next.config.ts ./
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 COPY docker/entrypoint-app.sh /usr/local/bin/entrypoint-app.sh
 RUN chmod +x /usr/local/bin/entrypoint-app.sh
