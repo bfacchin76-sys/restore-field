@@ -1,34 +1,54 @@
 # syntax=docker/dockerfile:1.7
 #
 # FieldRestore multi-stage Dockerfile. PRD §13.
-#
-# The same image is run with two different commands:
-#   - app:    pnpm start          (Next.js standalone server)
-#   - worker: pnpm worker         (BullMQ workers — image / counts / report)
-#
-# `docker-compose.yml` overrides the `command:` for the worker service.
 
 ARG NODE_VERSION=22-bookworm-slim
+ARG PNPM_VERSION=10.33.0
 
 # ----- 1. Builder ------------------------------------------------------------
 FROM node:${NODE_VERSION} AS builder
 WORKDIR /app
 
+ARG PNPM_VERSION
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN corepack enable
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-# Cache deps.
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+
 COPY package.json pnpm-lock.yaml ./
 COPY .npmrc* ./
 RUN pnpm install --frozen-lockfile
 
-# Generate Prisma client.
 COPY prisma ./prisma
 RUN pnpm exec prisma generate
 
-# Build Next standalone bundle.
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build" \
+    SHADOW_DATABASE_URL="postgresql://build:build@localhost:5432/build_shadow" \
+    REDIS_URL="redis://localhost:6379" \
+    S3_ENDPOINT="http://localhost:9000" \
+    S3_REGION="us-east-1" \
+    S3_ACCESS_KEY="build" \
+    S3_SECRET_KEY="build" \
+    S3_BUCKET="build" \
+    S3_FORCE_PATH_STYLE="true" \
+    AUTH_SECRET="build-only-placeholder-replaced-by-fly-secrets-at-runtime" \
+    NEXTAUTH_URL="http://localhost:3000" \
+    NEXTAUTH_SECRET="build-only-placeholder-replaced-by-fly-secrets-at-runtime" \
+    SMTP_HOST="" \
+    SMTP_PORT="587" \
+    SMTP_USER="" \
+    SMTP_PASS="" \
+    SMTP_FROM="FieldRestore <noreply@example.com>" \
+    INITIAL_OWNER_EMAIL="build@example.com" \
+    INITIAL_OWNER_PASSWORD="build-only-placeholder" \
+    INITIAL_OWNER_NAME="Build" \
+    ORG_NAME="Build Org" \
+    ORG_SLUG="build-org" \
+    ORG_PRIMARY_COLOR="#000000" \
+    ORG_REPORT_FOOTER=""
+
 COPY . .
 RUN pnpm build
 
@@ -36,7 +56,8 @@ RUN pnpm build
 FROM node:${NODE_VERSION} AS runtime
 WORKDIR /app
 
-# Sharp + Puppeteer/Chromium runtime libs + HEIC.
+ARG PNPM_VERSION
+
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       tini \
@@ -68,14 +89,14 @@ ENV HOSTNAME=0.0.0.0
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-# Production deps + tsx for the worker entrypoint.
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml ./
 COPY --from=builder /app/.npmrc* ./
 RUN pnpm install --prod --frozen-lockfile
 
-# App + worker payloads.
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
@@ -85,7 +106,6 @@ COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/next.config.ts ./
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Run prisma migrate deploy on app boot, then start the server.
 COPY docker/entrypoint-app.sh /usr/local/bin/entrypoint-app.sh
 RUN chmod +x /usr/local/bin/entrypoint-app.sh
 
